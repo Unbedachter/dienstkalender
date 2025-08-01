@@ -1,0 +1,3540 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dienst-Kalender</title>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            overflow-y: scroll;
+        }
+
+        html {
+            scrollbar-gutter: stable;
+        }
+
+        /* Kompensiert Scrollbalken ohne Layout-Verschiebung */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 0;
+            height: 100vh;
+            background: transparent;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Login Styles */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .login-box {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            width: 90%;
+            max-width: 400px;
+        }
+
+        .login-title {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+            font-size: 2rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .undo-redo-btn {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            color: #495057;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.2rem;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .undo-redo-btn:hover:not(:disabled) {
+            background: #e9ecef;
+            border-color: #dee2e6;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .undo-redo-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: #f8f9fa;
+            color: #6c757d;
+        }
+
+        .logout-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            background: #f8f9fa;
+            color: #495057;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .tab-content {
+            display: none;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Kalender Styles */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .month-nav {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .nav-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease;
+        }
+
+        .nav-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .current-month-btn {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 15px;
+        }
+
+        .month-year {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .calendar-header-cell {
+            background: #6c757d;
+            color: white;
+            padding: 15px 5px;
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .calendar-day {
+            background: white;
+            min-height: 100px;
+            padding: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .calendar-day:hover {
+            background: #f8f9fa;
+            transform: scale(1.02);
+        }
+
+        .calendar-day.other-month {
+            background: #f8f9fa;
+            color: #adb5bd;
+        }
+
+        .calendar-day.today {
+            background: linear-gradient(45deg, #ffd700, #ffed4a);
+            color: #333;
+            font-weight: bold;
+        }
+
+        .calendar-day.holiday {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+
+        .calendar-day.holiday.today {
+            background: linear-gradient(45deg, #ff9f43, #ee5a24);
+        }
+
+        .day-number {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .holiday-indicator {
+            font-size: 0.7rem;
+            color: white;
+            background: rgba(0,0,0,0.3);
+            padding: 1px 4px;
+            border-radius: 3px;
+            margin-bottom: 3px;
+            display: block;
+        }
+
+        .service-entry {
+            background: #28a745;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin: 2px 0;
+            display: block;
+            text-align: center;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background: white;
+            margin: 5% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            animation: modalSlideIn 0.3s ease;
+        }
+
+        @keyframes modalSlideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .close {
+            position: absolute;
+            right: 15px;
+            top: 15px;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #aaa;
+        }
+
+        .close:hover {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+            margin: 0;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 0.9rem;
+        }
+
+        .calculated-bonus {
+            margin-top: 5px;
+            font-size: 0.9rem;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Service Types */
+        .service-type-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .service-type-info {
+            flex: 1;
+        }
+
+        .service-type-name {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .service-type-details {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+
+        /* Salary Overview */
+        .salary-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .salary-section h3 {
+            margin-bottom: 15px;
+            color: #333;
+            border-bottom: 2px solid #e9ecef;
+            padding-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .salary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+
+        .salary-item.section-total {
+            border-top: 2px solid #333;
+            padding-top: 8px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .salary-item.final-total {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 1.3rem;
+        }
+
+        .salary-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .salary-nav {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        /* Overtime Styles */
+        .overtime-section {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 5px solid #2196f3;
+        }
+
+        .overtime-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        .overtime-input {
+            width: 120px;
+        }
+
+        /* Settings Grid */
+        .settings-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .settings-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 15px;
+            border: 2px solid #e9ecef;
+        }
+
+        .settings-card h3 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        /* Custom Items */
+        .custom-item {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .custom-item-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        /* Error/Success Messages */
+        .message {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        /* iCal Export */
+        .ical-section {
+            background: #fff3cd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 5px solid #ffc107;
+        }
+
+        /* Account Management */
+        .delete-account-section {
+            background: #f8d7da;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            border-left: 5px solid #dc3545;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .calendar-grid {
+                font-size: 0.8rem;
+            }
+            
+            .calendar-day {
+                min-height: 80px;
+                padding: 5px;
+            }
+            
+            .nav-tabs {
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+            
+            .tab-btn {
+                flex: 1;
+                min-width: 100px;
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .salary-header {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .overtime-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .modal-content {
+                width: 95%;
+                margin: 10% auto;
+                padding: 20px;
+            }
+            
+            .settings-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .service-type-item {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .service-type-item .btn {
+                align-self: flex-start;
+            }
+            
+            .calendar-header {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .month-nav {
+                justify-content: center;
+            }
+            
+            .btn {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+            
+            .form-group input,
+            .form-group select {
+                padding: 10px;
+                font-size: 1rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .container {
+                padding: 5px;
+            }
+            
+            .calendar-day {
+                min-height: 70px;
+                padding: 3px;
+            }
+            
+            .tab-btn {
+                min-width: 80px;
+                padding: 8px 12px;
+                font-size: 0.8rem;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .month-year {
+                font-size: 1.2rem;
+            }
+            
+            .service-entry {
+                font-size: 0.7rem;
+                padding: 1px 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="login-container">
+        <div class="login-box">
+            <h1 class="login-title">Dienst-Kalender</h1>
+            
+            <div id="messageContainer"></div>
+            
+            <div id="loginForm">
+                <div class="form-group">
+                    <label>Benutzername</label>
+                    <input type="text" id="loginUsername" placeholder="Benutzername eingeben">
+                </div>
+                <div class="form-group">
+                    <label>Passwort</label>
+                    <input type="password" id="loginPassword" placeholder="Passwort eingeben">
+                </div>
+                <button class="btn btn-primary" onclick="login()">Anmelden</button>
+                <button class="btn btn-secondary" onclick="showRegister()">Registrieren</button>
+            </div>
+
+            <div id="registerForm" class="hidden">
+                <div class="form-group">
+                    <label>Neuer Benutzername</label>
+                    <input type="text" id="registerUsername" placeholder="Benutzername eingeben">
+                </div>
+                <div class="form-group">
+                    <label>Passwort</label>
+                    <input type="password" id="registerPassword" placeholder="Passwort eingeben">
+                </div>
+                <div class="form-group">
+                    <label>Passwort wiederholen</label>
+                    <input type="password" id="registerPasswordConfirm" placeholder="Passwort wiederholen">
+                </div>
+                <button class="btn btn-primary" onclick="register()">Registrieren</button>
+                <button class="btn btn-secondary" onclick="showLogin()">Zurück</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="mainApp" class="container hidden">
+        <div class="header">
+            <div>
+                <h1>Dienst-Kalender</h1>
+                <div class="nav-tabs">
+                    <button class="tab-btn active" onclick="showTab('calendar', this)">Kalender</button>
+                    <button class="tab-btn" onclick="showTab('services', this)">Dienste</button>
+                    <button class="tab-btn" onclick="showTab('salary', this)">Gehalt</button>
+                    <button class="tab-btn" onclick="showTab('hours', this)">Stunden</button>
+                    <button class="tab-btn" onclick="showTab('settings', this)">Einstellungen</button>
+                </div>
+            </div>
+            <div class="header-controls">
+                <button class="undo-redo-btn" id="undoBtn" onclick="undo()" title="Rückgängig (Strg+Z)" disabled>↶</button>
+                <button class="undo-redo-btn" id="redoBtn" onclick="redo()" title="Wiederholen (Strg+Y)" disabled>↷</button>
+                <div class="user-info">
+                    <span>Angemeldet als: <strong id="currentUserDisplay"></strong></span>
+                    <button class="logout-btn" onclick="logout()">Abmelden</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kalender Tab -->
+        <div id="calendar" class="tab-content active">
+            <div class="calendar-header">
+                <div class="month-nav">
+                    <button class="nav-btn" onclick="changeMonth(-1)">‹</button>
+                    <span class="month-year" id="monthYear"></span>
+                    <button class="nav-btn" onclick="changeMonth(1)">›</button>
+                    <button class="current-month-btn" onclick="goToCurrentMonth()">Aktueller Monat</button>
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn btn-primary" onclick="openServiceModal()">Dienst hinzufügen</button>
+                    <button class="btn btn-success" onclick="openFreeModal()">Frei hinzufügen</button>
+                </div>
+            </div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+            
+            <!-- iCal Download Section -->
+            <div class="ical-section">
+                <h4>📅 Kalender-Export</h4>
+                <p>Lade deine Dienste als iCal-Datei herunter und importiere sie in deinen Kalender:</p>
+                <div style="margin-top: 10px;">
+                    <button class="btn btn-primary btn-small" onclick="downloadICalFile()">📥 iCal-Datei herunterladen</button>
+                </div>
+                <small>Die iCal-Datei enthält alle Dienste mit vollständigen Adressen. Du kannst sie in Google Calendar, iCloud oder Outlook importieren.</small>
+            </div>
+        </div>
+
+        <!-- Dienste Tab -->
+        <div id="services" class="tab-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2>Dienst-Typen</h2>
+                <button class="btn btn-primary" onclick="openServiceTypeModal()">Neuer Dienst-Typ</button>
+            </div>
+            <div id="serviceTypesList"></div>
+        </div>
+
+        <!-- Gehalt Tab -->
+        <div id="salary" class="tab-content">
+            <div class="salary-header">
+                <h2>Gehaltsübersicht</h2>
+                <div class="salary-nav">
+                    <button class="nav-btn" onclick="changeSalaryMonth(-1)">‹</button>
+                    <span class="month-year" id="salaryMonth"></span>
+                    <button class="nav-btn" onclick="changeSalaryMonth(1)">›</button>
+                    <button class="current-month-btn" onclick="goToCurrentMonthSalary()">Aktueller Monat</button>
+                </div>
+            </div>
+            <div id="salaryBreakdown"></div>
+        </div>
+
+        <!-- Stunden Tab -->
+        <div id="hours" class="tab-content">
+            <div class="salary-header">
+                <h2>Stundenübersicht - <span id="hoursMonth"></span></h2>
+                <button class="current-month-btn" onclick="goToCurrentMonthHours()">Aktueller Monat</button>
+            </div>
+            
+            <div class="salary-section">
+                <h3>Arbeitszeit <span id="hoursMonthDetail"></span></h3>
+                <div class="salary-item">
+                    <span>Soll-Stunden:</span>
+                    <span id="targetHours">0.0 h</span>
+                </div>
+                <div class="salary-item">
+                    <span>Ist-Stunden:</span>
+                    <span id="actualHours">0.0 h</span>
+                </div>
+                <div class="salary-item">
+                    <span>Überstundenfrei:</span>
+                    <span id="overtimeFreeHours">0.0 h</span>
+                </div>
+                <div class="salary-item section-total">
+                    <span>Überstunden Monat:</span>
+                    <span id="monthlyOvertime">0.0 h</span>
+                </div>
+            </div>
+
+            <div class="overtime-section">
+                <h3>Überstunden-Übersicht</h3>
+                <div class="salary-item">
+                    <span>Überstunden aus Vormonat:</span>
+                    <span id="previousOvertime">0.0 h</span>
+                </div>
+                <div class="salary-item">
+                    <span>Überstunden aktueller Monat:</span>
+                    <span id="currentMonthOvertime">0.0 h</span>
+                </div>
+                <div class="salary-item">
+                    <span>Überstunden Auszahlung:</span>
+                    <span id="overtimePaymentHours">0.0 h</span>
+                </div>
+                <div class="salary-item section-total">
+                    <span>Gesamte Überstunden:</span>
+                    <span id="totalOvertime">0.0 h</span>
+                </div>
+                
+                <div class="overtime-controls">
+                    <div class="form-group" style="margin-bottom: 0; display: flex; align-items: end; gap: 15px;">
+                        <div>
+                            <label>Stunden auszahlen</label>
+                            <input type="number" id="overtimeHoursToPay" placeholder="Stunden" step="0.5" min="0" style="width: 200px;">
+                        </div>
+                        <button class="btn btn-warning" onclick="payOutOvertime()" style="margin: 0;">Überstunden auszahlen</button>
+                    </div>
+                </div>
+                
+                <div id="overtimePaymentInfo" style="margin-top: 15px; display: none;">
+                    <div class="salary-item">
+                        <span>Brutto-Auszahlung:</span>
+                        <span id="overtimeBruttoPayment">0.00 €</span>
+                    </div>
+                    <button class="btn btn-secondary" onclick="cancelOvertimePayment()" style="margin-top: 10px;">Überstunden doch nicht auszahlen</button>
+                </div>
+            </div>
+
+            <div class="salary-section">
+                <h3>Urlaubstage <span id="vacationMonth"></span></h3>
+                <div class="salary-item">
+                    <span>Urlaubstage pro Jahr:</span>
+                    <span id="vacationDaysPerYearDisplay">30 Tage</span>
+                </div>
+                <div class="salary-item">
+                    <span>Genommene Urlaubstage:</span>
+                    <span id="takenVacationDays">0 Tage</span>
+                </div>
+                <div class="salary-item section-total">
+                    <span>Verbleibende Urlaubstage:</span>
+                    <span id="remainingVacationDays">30 Tage</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Einstellungen Tab -->
+        <div id="settings" class="tab-content">
+            <h2>Einstellungen</h2>
+            <div class="settings-grid">
+                <div class="settings-card">
+                    <h3>Allgemein</h3>
+                    
+                    <div class="form-group">
+                        <label>Bundesland</label>
+                        <select id="federalState" onchange="saveSalarySettings()">
+                            <option value="BW">Baden-Württemberg</option>
+                            <option value="BY">Bayern</option>
+                            <option value="BE">Berlin</option>
+                            <option value="BB">Brandenburg</option>
+                            <option value="HB">Bremen</option>
+                            <option value="HH">Hamburg</option>
+                            <option value="HE">Hessen</option>
+                            <option value="MV">Mecklenburg-Vorpommern</option>
+                            <option value="NI">Niedersachsen</option>
+                            <option value="NW">Nordrhein-Westfalen</option>
+                            <option value="RP">Rheinland-Pfalz</option>
+                            <option value="SL">Saarland</option>
+                            <option value="SN">Sachsen</option>
+                            <option value="ST">Sachsen-Anhalt</option>
+                            <option value="SH">Schleswig-Holstein</option>
+                            <option value="TH">Thüringen</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Soll-Stunden pro Monat</label>
+                        <input type="number" id="targetHoursPerMonth" placeholder="170" step="0.1" onchange="saveSalarySettings(); updateCalculatedHourlyRate();">
+                    </div>
+                    <div class="form-group">
+                        <label>Urlaubstage pro Jahr</label>
+                        <input type="number" id="vacationDaysPerYear" placeholder="30" step="1" min="0" onchange="saveSalarySettings()">
+                    </div>
+                    <div class="form-group" style="display: flex; gap: 15px; align-items: end;">
+                        <div style="flex: 1;">
+                            <label>Anzahl Überstunden</label>
+                            <input type="number" id="manualOvertimeHours" placeholder="0" step="0.5" onchange="saveSalarySettings()">
+                        </div>
+                        <div style="flex: 1;">
+                            <label>Für Monat</label>
+                            <input type="month" id="manualOvertimeMonth" onchange="saveSalarySettings()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3>Grundgehalt & Zulagen</h3>
+                    <div class="form-group">
+                        <label>Brutto Grundgehalt (€)</label>
+                        <input type="number" id="basicSalary" placeholder="3000" step="0.01" onchange="saveSalarySettings(); updateCalculatedHourlyRate();">
+                    </div>
+                    <div class="form-group">
+                        <label>Wechselschicht-Zulage (€)</label>
+                        <input type="number" id="shiftAllowance" placeholder="200" step="0.01" onchange="saveSalarySettings()">
+                    </div>
+                    <div class="form-group">
+                        <label>Stundenlohn (automatisch berechnet)</label>
+                        <input type="text" id="calculatedHourlyRate" readonly style="background-color: #f8f9fa; color: #6c757d;">
+                    </div>
+                    <div id="customBasicItems"></div>
+                </div>
+
+                <div class="settings-card">
+                    <h3>Nachtarbeit</h3>
+                    <div class="form-group">
+                        <label>Nachtzuschlag Start (Uhrzeit)</label>
+                        <input type="time" id="nightShiftStart" value="22:00" onchange="saveSalarySettings()">
+                    </div>
+                    <div class="form-group">
+                        <label>Nachtzuschlag Ende (Uhrzeit)</label>
+                        <input type="time" id="nightShiftEnd" value="06:00" onchange="saveSalarySettings()">
+                    </div>
+                </div>
+                
+                <div class="settings-card">
+                    <h3>Zuschläge</h3>
+                    <div class="form-group">
+                        <label>Nacht-Zuschlag (%)</label>
+                        <input type="number" id="nightShiftBonus" placeholder="50" step="0.01" onchange="saveSalarySettings(); updateCalculatedHourlyRate();">
+                        <div class="calculated-bonus">Berechneter Zuschlag: <span id="nightShiftBonusCalculated">0.00 €/h</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Sonntag-Zuschlag (%)</label>
+                        <input type="number" id="sundayBonus" placeholder="25" step="0.01" onchange="saveSalarySettings(); updateCalculatedHourlyRate();">
+                        <div class="calculated-bonus">Berechneter Zuschlag: <span id="sundayBonusCalculated">0.00 €/h</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Feiertag-Zuschlag (%)</label>
+                        <input type="number" id="holidayBonus" placeholder="50" step="0.01" onchange="saveSalarySettings(); updateCalculatedHourlyRate();">
+                        <div class="calculated-bonus">Berechneter Zuschlag: <span id="holidayBonusCalculated">0.00 €/h</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Sonntag + Feiertag-Zuschlag (%)</label>
+                        <input type="number" id="sundayHolidayBonus" placeholder="75" step="0.01" onchange="saveSalarySettings(); updateCalculatedHourlyRate();">
+                        <div class="calculated-bonus">Berechneter Zuschlag: <span id="sundayHolidayBonusCalculated">0.00 €/h</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Einspring-Zuschlag (%)</label>
+                        <input type="number" id="substituteHourlyBonus" placeholder="5" step="0.01" onchange="saveSalarySettings(); updateCalculatedHourlyRate();">
+                        <div class="calculated-bonus">Berechneter Zuschlag: <span id="substituteHourlyBonusCalculated">0.00 €/h</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Überstunden-Zuschlag (%)</label>
+                        <input type="number" id="overtimeHourlyRate" placeholder="25" step="0.01" onchange="saveSalarySettings(); updateCalculatedHourlyRate();">
+                        <div class="calculated-bonus">Berechneter Zuschlag: <span id="overtimeHourlyRateCalculated">0.00 €/h</span></div>
+                    </div>
+                    <div id="customBonusItems"></div>
+                </div>
+                
+                <div class="settings-card">
+                    <h3>Pauschalen</h3>
+                    <div class="form-group">
+                        <label>Einspring-Pauschale (€)</label>
+                        <input type="number" id="substituteBonus" placeholder="30" step="0.01" onchange="saveSalarySettings()">
+                    </div>
+                    <div id="customBenefitItems"></div>
+                </div>
+
+                <div class="settings-card">
+                    <h3>Datenexport</h3>
+                    <div class="form-group">
+                        <button class="btn btn-primary" onclick="exportUserData()">Meine Daten exportieren (JSON)</button>
+                        <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData()">
+                        <button class="btn btn-secondary" onclick="document.getElementById('importFile').click()">Daten importieren</button>
+                    </div>
+                </div>
+
+                <div class="settings-card">
+                    <h3>Account-Verwaltung</h3>
+                    <div class="delete-account-section">
+                        <h4 style="color: #dc3545; margin-bottom: 10px;">⚠️ Gefährlicher Bereich</h4>
+                        <p style="margin-bottom: 15px;">Das Löschen des Accounts kann nicht rückgängig gemacht werden. Alle deine Dienste, Einstellungen und Daten werden permanent gelöscht.</p>
+                        <button class="btn btn-danger" onclick="deleteAccount()">Account und alle Daten löschen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Modal -->
+    <div id="serviceModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeServiceModal()">&times;</span>
+            <h2 id="serviceModalTitle">Dienst hinzufügen</h2>
+            <form id="serviceForm">
+                <div class="form-group">
+                    <label>Datum</label>
+                    <input type="date" id="serviceDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Dienst-Typ</label>
+                    <select id="serviceType" required></select>
+                </div>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="isSubstitute">
+                        <label for="isSubstitute">Einsprung-Dienst</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Notizen</label>
+                    <input type="text" id="serviceNotes" placeholder="Zusätzliche Informationen">
+                </div>
+                <button type="submit" class="btn btn-primary">Speichern</button>
+                <button type="button" class="btn btn-secondary" onclick="closeServiceModal()">Abbrechen</button>
+                <button type="button" class="btn btn-danger" id="deleteServiceBtn" onclick="deleteService()" style="display: none;">Löschen</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Service Type Modal -->
+    <div id="serviceTypeModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeServiceTypeModal()">&times;</span>
+            <h2 id="serviceTypeModalTitle">Neuer Dienst-Typ</h2>
+            <form id="serviceTypeForm">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="serviceTypeName" placeholder="z.B. Frühdienst" required>
+                </div>
+                <div class="form-group">
+                    <label>Startzeit</label>
+                    <input type="time" id="serviceStartTime" required>
+                </div>
+                <div class="form-group">
+                    <label>Endzeit</label>
+                    <input type="time" id="serviceEndTime" required>
+                </div>
+                <div class="form-group">
+                    <label>Arbeitszeit-Anteil (%)</label>
+                    <input type="number" id="workTimePercentage" min="0" max="100" placeholder="100" step="0.1" required>
+                </div>
+                <div class="form-group">
+                    <label>Umziehzeit (Minuten)</label>
+                    <input type="number" id="changeTime" min="0" placeholder="15" step="1">
+                </div>
+                <div class="form-group">
+                    <label>Adresse (optional)</label>
+                    <input type="text" id="serviceTypeAddress" placeholder="z.B. Krankenhausstraße 1, 12345 Musterstadt">
+                </div>
+                <div class="form-group">
+                    <label>Farbe</label>
+                    <input type="color" id="serviceColor" value="#28a745">
+                </div>
+                <div class="form-group">
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="serviceTypeIsOnCall">
+                        <label for="serviceTypeIsOnCall">Rufbereitschaftsdienst (keine Zuschläge)</label>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Speichern</button>
+                <button type="button" class="btn btn-secondary" onclick="closeServiceTypeModal()">Abbrechen</button>
+                <button type="button" class="btn btn-danger" id="deleteServiceTypeBtn" onclick="deleteServiceType()" style="display: none;">Löschen</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Item Modal -->
+    <div id="customItemModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeCustomItemModal()">&times;</span>
+            <h2 id="customItemModalTitle">Benutzerdefinierten Eintrag hinzufügen</h2>
+            <form id="customItemForm">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input type="text" id="customItemName" placeholder="z.B. Fahrkostenzuschuss" required>
+                </div>
+                <div class="form-group">
+                    <label>Betrag (€)</label>
+                    <input type="number" id="customItemAmount" placeholder="50" step="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Typ</label>
+                    <select id="customItemType" required>
+                        <option value="">Bitte wählen</option>
+                        <option value="fixed">Fester Betrag pro Monat</option>
+                        <option value="per_service">Betrag pro Dienst</option>
+                        <option value="per_hour">Betrag pro Arbeitsstunde</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Speichern</button>
+                <button type="button" class="btn btn-secondary" onclick="closeCustomItemModal()">Abbrechen</button>
+                <button type="button" class="btn btn-danger" id="deleteCustomItemBtn" onclick="deleteCustomItem()" style="display: none;">Löschen</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Free Modal -->
+    <div id="freeModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeFreeModal()">&times;</span>
+            <h2 id="freeModalTitle">Frei hinzufügen</h2>
+            <form id="freeForm">
+                <div class="form-group">
+                    <label>Datum</label>
+                    <input type="date" id="freeDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Art des Freis</label>
+                    <select id="freeType" required>
+                        <option value="">Bitte wählen</option>
+                        <option value="vacation">Urlaub</option>
+                        <option value="overtime">Überstundenfrei</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Notizen</label>
+                    <input type="text" id="freeNotes" placeholder="Zusätzliche Informationen">
+                </div>
+                <button type="submit" class="btn btn-primary">Speichern</button>
+                <button type="button" class="btn btn-secondary" onclick="closeFreeModal()">Abbrechen</button>
+                <button type="button" class="btn btn-danger" id="deleteFreeBtn" onclick="deleteFree()" style="display: none;">Löschen</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Firebase Konfiguration -->
+    <script src="firebase-config.js"></script>
+    <script src="firebase-functions.js"></script>
+    
+    <script>
+        // Global variables
+        let currentDate = new Date();
+        let salaryDate = new Date(); // Separate date for salary view
+        let currentUser = null;
+        let users = {};
+        let serviceTypes = [];
+        let services = [];
+        let freeDays = []; // Stores free days (vacation and overtime free)
+        let overtimeHistory = {}; // Stores overtime hours by month: { "2025-01": 10.5, "2025-02": -5.0 }
+        let overtimePayment = 0; // Stores overtime payment amount
+        let overtimePaymentHours = 0; // Stores overtime payment hours
+        let salarySettings = {
+            basicSalary: 3000,
+            shiftAllowance: 200,
+            nightShiftBonus: 50,
+            sundayBonus: 25,
+            holidayBonus: 50,
+            sundayHolidayBonus: 75,
+            substituteBonus: 30,
+            overtimeHourlyRate: 25,
+            targetHoursPerMonth: 170,
+            vacationDaysPerYear: 30,
+            manualOvertimeHours: 0,
+            manualOvertimeMonth: '',
+            nightShiftStart: '22:00',
+            nightShiftEnd: '06:00',
+            federalState: 'HE',
+
+            customBasicItems: [], // Benutzerdefinierte Grundgehalt-Einträge
+            customBonusItems: [], // Benutzerdefinierte Zuschläge
+            customBenefitItems: [] // Benutzerdefinierte Pauschalen
+        };
+        let editingService = null;
+        let editingServiceType = null;
+        let editingCustomItem = null;
+        let editingFreeDay = null;
+        let currentCustomItemCategory = null;
+
+        // Undo/Redo system
+        let undoStack = [];
+        let redoStack = [];
+        let isUndoRedoAction = false;
+
+        // Erweiterte Feiertage für alle Bundesländer
+        const holidaysByState = {
+            'BW': { // Baden-Württemberg
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag', 'fronleichnam'],
+                additional: ['01-06', '11-01'] // Heilige Drei Könige, Allerheiligen
+            },
+            'BY': { // Bayern
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag', 'fronleichnam'],
+                additional: ['01-06', '11-01'] // Heilige Drei Könige, Allerheiligen
+            },
+            'BE': { // Berlin
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag'],
+                additional: ['03-08'] // Weltfrauentag
+            },
+            'BB': { // Brandenburg
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag'],
+                additional: ['10-31'] // Reformationstag
+            },
+            'HB': { // Bremen
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag'],
+                additional: ['10-31'] // Reformationstag
+            },
+            'HH': { // Hamburg
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag'],
+                additional: ['10-31'] // Reformationstag
+            },
+            'HE': { // Hessen
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag', 'fronleichnam']
+            },
+            'MV': { // Mecklenburg-Vorpommern
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag'],
+                additional: ['10-31'] // Reformationstag
+            },
+            'NI': { // Niedersachsen
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag'],
+                additional: ['10-31'] // Reformationstag
+            },
+            'NW': { // Nordrhein-Westfalen
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag', 'fronleichnam'],
+                additional: ['11-01'] // Allerheiligen
+            },
+            'RP': { // Rheinland-Pfalz
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag', 'fronleichnam'],
+                additional: ['11-01'] // Allerheiligen
+            },
+            'SL': { // Saarland
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag', 'fronleichnam'],
+                additional: ['11-01'] // Allerheiligen
+            },
+            'SN': { // Sachsen
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag'],
+                additional: ['10-31', '11-17'] // Reformationstag, Buß- und Bettag
+            },
+            'ST': { // Sachsen-Anhalt
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag'],
+                additional: ['01-06', '10-31'] // Heilige Drei Könige, Reformationstag
+            },
+            'SH': { // Schleswig-Holstein
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag'],
+                additional: ['10-31'] // Reformationstag
+            },
+            'TH': { // Thüringen
+                fixed: ['01-01', '05-01', '10-03', '12-25', '12-26'],
+                easter: ['karfreitag', 'ostermontag', 'himmelfahrt', 'pfingstmontag'],
+                additional: ['10-31', '09-20'] // Reformationstag, Weltkindertag
+            }
+        };
+
+        // Oster-Berechnung (Gaußsche Formel)
+        function calculateEaster(year) {
+            const a = year % 19;
+            const b = Math.floor(year / 100);
+            const c = year % 100;
+            const d = Math.floor(b / 4);
+            const e = b % 4;
+            const f = Math.floor((b + 8) / 25);
+            const g = Math.floor((b - f + 1) / 3);
+            const h = (19 * a + b - d - g + 15) % 30;
+            const i = Math.floor(c / 4);
+            const k = c % 4;
+            const l = (32 + 2 * e + 2 * i - h - k) % 7;
+            const m = Math.floor((a + 11 * h + 22 * l) / 451);
+            const month = Math.floor((h + l - 7 * m + 114) / 31);
+            const day = ((h + l - 7 * m + 114) % 31) + 1;
+            
+            return new Date(year, month - 1, day);
+        }
+
+        // Feiertage für ein Jahr berechnen
+        function getHolidaysForYear(year, state = 'HE') {
+            const holidays = {};
+            const stateConfig = holidaysByState[state] || holidaysByState['HE'];
+            
+            // Feste Feiertage
+            stateConfig.fixed.forEach(date => {
+                const fullDate = `${year}-${date}`;
+                holidays[fullDate] = getHolidayName(date);
+            });
+            
+            // Zusätzliche feste Feiertage
+            if (stateConfig.additional) {
+                stateConfig.additional.forEach(date => {
+                    const fullDate = `${year}-${date}`;
+                    holidays[fullDate] = getHolidayName(date);
+                });
+            }
+            
+            // Osterbasierte Feiertage
+            if (stateConfig.easter) {
+                const easter = calculateEaster(year);
+                
+                stateConfig.easter.forEach(easterHoliday => {
+                    let holidayDate;
+                    switch (easterHoliday) {
+                        case 'karfreitag':
+                            holidayDate = new Date(easter);
+                            holidayDate.setDate(easter.getDate() - 2);
+                            // Use local date format to avoid timezone issues
+                            const karfreitagStr = `${holidayDate.getFullYear()}-${String(holidayDate.getMonth() + 1).padStart(2, '0')}-${String(holidayDate.getDate()).padStart(2, '0')}`;
+                            holidays[karfreitagStr] = 'Karfreitag';
+                            break;
+                        case 'ostermontag':
+                            holidayDate = new Date(easter);
+                            holidayDate.setDate(easter.getDate() + 1);
+                            const ostermontagStr = `${holidayDate.getFullYear()}-${String(holidayDate.getMonth() + 1).padStart(2, '0')}-${String(holidayDate.getDate()).padStart(2, '0')}`;
+                            holidays[ostermontagStr] = 'Ostermontag';
+                            break;
+                        case 'himmelfahrt':
+                            holidayDate = new Date(easter);
+                            holidayDate.setDate(easter.getDate() + 39);
+                            const himmelfahrtStr = `${holidayDate.getFullYear()}-${String(holidayDate.getMonth() + 1).padStart(2, '0')}-${String(holidayDate.getDate()).padStart(2, '0')}`;
+                            holidays[himmelfahrtStr] = 'Christi Himmelfahrt';
+                            break;
+                        case 'pfingstmontag':
+                            holidayDate = new Date(easter);
+                            holidayDate.setDate(easter.getDate() + 50);
+                            const pfingstmontagStr = `${holidayDate.getFullYear()}-${String(holidayDate.getMonth() + 1).padStart(2, '0')}-${String(holidayDate.getDate()).padStart(2, '0')}`;
+                            holidays[pfingstmontagStr] = 'Pfingstmontag';
+                            break;
+                        case 'fronleichnam':
+                            holidayDate = new Date(easter);
+                            holidayDate.setDate(easter.getDate() + 60);
+                            const fronleichnamStr = `${holidayDate.getFullYear()}-${String(holidayDate.getMonth() + 1).padStart(2, '0')}-${String(holidayDate.getDate()).padStart(2, '0')}`;
+                            holidays[fronleichnamStr] = 'Fronleichnam';
+                            break;
+                    }
+                });
+            }
+            
+            return holidays;
+        }
+
+        // Feiertags-Namen zuordnen
+        function getHolidayName(dateStr) {
+            const holidayNames = {
+                '01-01': 'Neujahr',
+                '01-06': 'Heilige Drei Könige',
+                '03-08': 'Weltfrauentag',
+                '05-01': 'Tag der Arbeit',
+                '09-20': 'Weltkindertag',
+                '10-03': 'Tag der Deutschen Einheit',
+                '10-31': 'Reformationstag',
+                '11-01': 'Allerheiligen',
+                '11-17': 'Buß- und Bettag',
+                '12-25': '1. Weihnachtsfeiertag',
+                '12-26': '2. Weihnachtsfeiertag'
+            };
+            return holidayNames[dateStr] || 'Feiertag';
+        }
+
+        // Message display functions
+        function showMessage(message, type = 'success') {
+            const container = document.getElementById('messageContainer');
+            container.innerHTML = `<div class="message ${type}">${message}</div>`;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 3000);
+        }
+
+        // Authentication functions - FIXED to save/load properly
+        function loadUsers() {
+            try {
+                const stored = localStorage.getItem('dienstKalenderUsers');
+                if (stored) {
+                    users = JSON.parse(stored);
+                }
+            } catch (e) {
+                console.error('Error loading users from localStorage:', e);
+                users = {};
+            }
+        }
+
+        function saveUsers() {
+            try {
+                localStorage.setItem('dienstKalenderUsers', JSON.stringify(users));
+            } catch (e) {
+                console.error('Error saving users:', e);
+                showMessage('Fehler beim Speichern der Benutzerdaten', 'error');
+            }
+        }
+
+        function showLogin() {
+            document.getElementById('loginForm').classList.remove('hidden');
+            document.getElementById('registerForm').classList.add('hidden');
+            clearLoginForm();
+        }
+
+        function showRegister() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.remove('hidden');
+            clearRegisterForm();
+        }
+
+        function clearLoginForm() {
+            document.getElementById('loginUsername').value = '';
+            document.getElementById('loginPassword').value = '';
+        }
+
+        function clearRegisterForm() {
+            document.getElementById('registerUsername').value = '';
+            document.getElementById('registerPassword').value = '';
+            document.getElementById('registerPasswordConfirm').value = '';
+        }
+
+        async function login() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            if (!username || !password) {
+                showMessage('Bitte Benutzername und Passwort eingeben', 'error');
+                return;
+            }
+
+            try {
+                const result = await loginUserWithFirebase(username, password);
+                if (result.success) {
+                    currentUser = username;
+                    document.getElementById('currentUserDisplay').textContent = username;
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    document.getElementById('mainApp').classList.remove('hidden');
+                    
+                    // Benutzerdaten von Firebase laden
+                    const userData = await loadUserDataFromFirebase(result.userId);
+                    if (userData) {
+                        serviceTypes = userData.serviceTypes || [];
+                        services = userData.services || [];
+                        freeDays = userData.freeDays || [];
+                        overtimeHistory = userData.overtimeHistory || {};
+                        salarySettings = { ...salarySettings, ...userData.salarySettings };
+                    }
+                    
+                    renderCalendar();
+                    renderServiceTypes();
+                    updateSalaryOverview();
+                    updateHoursOverview();
+                    loadSalarySettings();
+                    renderCustomItems();
+                    updateUndoRedoButtons();
+                } else {
+                    showMessage('Ungültiger Benutzername oder Passwort', 'error');
+                }
+            } catch (error) {
+                showMessage('Fehler bei der Anmeldung: ' + error.message, 'error');
+            }
+        }
+
+        async function register() {
+            const username = document.getElementById('registerUsername').value.trim();
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('registerPasswordConfirm').value;
+
+            if (!username || !password) {
+                showMessage('Bitte alle Felder ausfüllen', 'error');
+                return;
+            }
+
+            if (username.length < 3) {
+                showMessage('Benutzername muss mindestens 3 Zeichen lang sein', 'error');
+                return;
+            }
+
+            if (password.length < 4) {
+                showMessage('Passwort muss mindestens 4 Zeichen lang sein', 'error');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                showMessage('Passwörter stimmen nicht überein', 'error');
+                return;
+            }
+
+            try {
+                const result = await registerUserWithFirebase(username, password);
+                if (result.success) {
+                    showMessage('Benutzer erfolgreich registriert!', 'success');
+                    setTimeout(() => {
+                        showLogin();
+                    }, 1500);
+                } else {
+                    showMessage('Fehler bei der Registrierung: ' + result.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Fehler bei der Registrierung: ' + error.message, 'error');
+            }
+        }
+
+        function logout() {
+            saveUserData();
+            currentUser = null;
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('mainApp').classList.add('hidden');
+            clearLoginForm();
+        }
+
+        // Account deletion function
+        function deleteAccount() {
+            if (!currentUser) return;
+            
+            const confirmText = `Möchtest du deinen Account "${currentUser}" wirklich löschen?\n\nAlle deine Dienste, Einstellungen und Daten werden permanent gelöscht.\nDieser Vorgang kann nicht rückgängig gemacht werden!\n\nGib zur Bestätigung deinen Benutzernamen ein:`;
+            
+            const userInput = prompt(confirmText);
+            
+            if (userInput === currentUser) {
+                // Delete user from users object
+                delete users[currentUser];
+                saveUsers();
+                
+                showMessage('Account wurde erfolgreich gelöscht', 'success');
+                
+                // Logout after 2 seconds
+                setTimeout(() => {
+                    logout();
+                }, 2000);
+            } else if (userInput !== null) {
+                showMessage('Benutzername stimmt nicht überein. Account nicht gelöscht.', 'error');
+            }
+        }
+
+        // Initialize app - FIXED to load users properly
+        document.addEventListener('DOMContentLoaded', function() {
+            // Try to load from external database first
+            if (typeof dienstKalenderData !== 'undefined' && dienstKalenderData.users) {
+                users = dienstKalenderData.users;
+                console.log('External database loaded successfully');
+            } else {
+                // Fallback to localStorage
+                loadUsers();
+            }
+            
+            // Stabilize layout to prevent shifting
+            stabilizeLayout();
+        });
+
+        // Prevent layout shift by ensuring consistent scrollbar space
+        function stabilizeLayout() {
+            const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+            if (scrollbarWidth > 0) {
+                document.body.style.paddingRight = scrollbarWidth + 'px';
+            }
+        }
+
+        // Tab management - FIXED
+        function showTab(tabName, buttonElement) {
+            // Remove active class from all tabs and buttons
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            
+            // Add active class to selected tab and button
+            document.getElementById(tabName).classList.add('active');
+            buttonElement.classList.add('active');
+            
+            // Update specific tabs when shown
+            if (tabName === 'salary') {
+                updateSalaryOverview();
+            } else if (tabName === 'hours') {
+                updateHoursOverview();
+            } else if (tabName === 'calendar') {
+                renderCalendar();
+            }
+        }
+
+        // Calendar functions
+        function renderCalendar() {
+            console.log('renderCalendar called, services count:', services.length);
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth();
+            
+            document.getElementById('monthYear').textContent = 
+                new Date(year, month).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+            
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const firstDayWeek = (firstDay.getDay() + 6) % 7; // Monday = 0
+            
+            // Aktuelle Feiertage basierend auf Bundesland laden
+            const currentHolidays = getHolidaysForYear(year, salarySettings.federalState);
+            
+            const calendarGrid = document.getElementById('calendarGrid');
+            calendarGrid.innerHTML = '';
+            
+            // Header
+            const weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+            weekdays.forEach(day => {
+                const headerCell = document.createElement('div');
+                headerCell.className = 'calendar-header-cell';
+                headerCell.textContent = day;
+                calendarGrid.appendChild(headerCell);
+            });
+            
+            // Previous month days
+            for (let i = firstDayWeek - 1; i >= 0; i--) {
+                const prevDate = new Date(year, month, -i);
+                const dayCell = createDayCell(prevDate, true, currentHolidays);
+                calendarGrid.appendChild(dayCell);
+            }
+            
+            // Current month days
+            for (let day = 1; day <= lastDay.getDate(); day++) {
+                const date = new Date(year, month, day);
+                const dayCell = createDayCell(date, false, currentHolidays);
+                calendarGrid.appendChild(dayCell);
+            }
+            
+            // Next month days
+            const totalCells = calendarGrid.children.length - 7; // Exclude header
+            const remainingCells = 42 - totalCells; // 6 rows * 7 days
+            for (let day = 1; day <= remainingCells; day++) {
+                const nextDate = new Date(year, month + 1, day);
+                const dayCell = createDayCell(nextDate, true, currentHolidays);
+                calendarGrid.appendChild(dayCell);
+            }
+        }
+
+        function createDayCell(date, otherMonth, holidays) {
+            const dayCell = document.createElement('div');
+            dayCell.className = 'calendar-day';
+            if (otherMonth) dayCell.classList.add('other-month');
+            
+            const today = new Date();
+            if (date.toDateString() === today.toDateString()) {
+                dayCell.classList.add('today');
+            }
+
+            // Create local date string to avoid timezone issues
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const localDateStr = `${year}-${month}-${day}`;
+            
+            // Check for holidays
+            const isHoliday = holidays[localDateStr];
+            if (isHoliday) {
+                dayCell.classList.add('holiday');
+            }
+            
+            const dayNumber = document.createElement('div');
+            dayNumber.className = 'day-number';
+            dayNumber.textContent = date.getDate();
+            dayCell.appendChild(dayNumber);
+
+            // Add holiday indicator
+            if (isHoliday) {
+                const holidayIndicator = document.createElement('div');
+                holidayIndicator.className = 'holiday-indicator';
+                holidayIndicator.textContent = isHoliday;
+                dayCell.appendChild(holidayIndicator);
+            }
+            
+            // Add services for this day
+            const dayServices = services.filter(s => s.date === localDateStr);
+            
+            dayServices.forEach(service => {
+                const serviceType = serviceTypes.find(st => st.id === service.serviceTypeId);
+                if (serviceType) {
+                    const serviceEntry = document.createElement('div');
+                    serviceEntry.className = 'service-entry';
+                    serviceEntry.style.backgroundColor = serviceType.color;
+                    serviceEntry.textContent = serviceType.name;
+                    if (service.isSubstitute) {
+                        serviceEntry.textContent += ' (E)';
+                    }
+                    if (serviceType.isOnCall) {
+                        serviceEntry.textContent += ' (R)';
+                    }
+                    serviceEntry.onclick = (e) => {
+                        e.stopPropagation();
+                        editService(service);
+                    };
+                    dayCell.appendChild(serviceEntry);
+                }
+            });
+            
+            // Add free days for this day
+            const dayFreeDays = freeDays.filter(f => f.date === localDateStr);
+            
+            dayFreeDays.forEach(freeDay => {
+                const freeEntry = document.createElement('div');
+                freeEntry.className = 'service-entry';
+                if (freeDay.type === 'vacation') {
+                    freeEntry.style.backgroundColor = '#ff6b6b';
+                    freeEntry.textContent = 'Urlaub';
+                } else if (freeDay.type === 'overtime') {
+                    freeEntry.style.backgroundColor = '#4ecdc4';
+                    freeEntry.textContent = 'Überstundenfrei';
+                }
+                freeEntry.onclick = (e) => {
+                    e.stopPropagation();
+                    editFreeDay(freeDay);
+                };
+                dayCell.appendChild(freeEntry);
+            });
+            
+            dayCell.onclick = () => {
+                openServiceModal();
+                // Set date automatically - use local date format to avoid timezone issues
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const localDateStr = `${year}-${month}-${day}`;
+                document.getElementById('serviceDate').value = localDateStr;
+            };
+            
+            return dayCell;
+        }
+
+        function changeMonth(direction) {
+            currentDate.setMonth(currentDate.getMonth() + direction);
+            renderCalendar();
+        }
+
+        function goToCurrentMonth() {
+            currentDate = new Date();
+            renderCalendar();
+        }
+
+        // Salary month navigation
+        function changeSalaryMonth(direction) {
+            salaryDate.setMonth(salaryDate.getMonth() + direction);
+            updateSalaryOverview();
+        }
+
+        function goToCurrentMonthSalary() {
+            salaryDate = new Date();
+            updateSalaryOverview();
+        }
+
+        function goToCurrentMonthHours() {
+            currentDate = new Date();
+            updateHoursOverview();
+        }
+
+        // Service management - FIXED
+        function openServiceModal(date = null) {
+            const modal = document.getElementById('serviceModal');
+            const form = document.getElementById('serviceForm');
+            
+            if (date) {
+                document.getElementById('serviceDate').value = date.toISOString().split('T')[0];
+            }
+            
+            updateServiceTypeOptions();
+            
+            document.getElementById('serviceModalTitle').textContent = editingService ? 'Dienst bearbeiten' : 'Dienst hinzufügen';
+            document.getElementById('deleteServiceBtn').style.display = editingService ? 'block' : 'none';
+            
+            if (editingService) {
+                document.getElementById('serviceDate').value = editingService.date;
+                document.getElementById('serviceType').value = editingService.serviceTypeId;
+                document.getElementById('isSubstitute').checked = editingService.isSubstitute;
+                document.getElementById('serviceNotes').value = editingService.notes || '';
+            } else if (!document.getElementById('serviceDate').value) {
+                form.reset();
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function closeServiceModal() {
+            document.getElementById('serviceModal').style.display = 'none';
+            editingService = null;
+        }
+
+        function updateServiceTypeOptions() {
+            const select = document.getElementById('serviceType');
+            select.innerHTML = '<option value="">Dienst-Typ wählen</option>';
+            
+            serviceTypes.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type.id;
+                option.textContent = `${type.name} (${type.startTime} - ${type.endTime})`;
+                select.appendChild(option);
+            });
+        }
+
+        function editService(service) {
+            editingService = service;
+            openServiceModal();
+        }
+
+        function deleteService() {
+            if (editingService && confirm('Dienst wirklich löschen?')) {
+                // Save state before making changes
+                saveState();
+                
+                services = services.filter(s => s.id !== editingService.id);
+                saveUserData();
+                renderCalendar();
+                
+                // Navigate salary view to the month where the service was deleted
+                const serviceDate = new Date(editingService.date);
+                salaryDate.setFullYear(serviceDate.getFullYear());
+                salaryDate.setMonth(serviceDate.getMonth());
+                
+                updateSalaryOverview();
+                updateHoursOverview();
+                closeServiceModal();
+            }
+        }
+
+        // Service form handling - FIXED
+        document.getElementById('serviceForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const selectedServiceTypeId = document.getElementById('serviceType').value;
+            if (!selectedServiceTypeId) {
+                showMessage('Bitte einen Dienst-Typ auswählen', 'error');
+                return;
+            }
+            
+            // Save state before making changes
+            saveState();
+            
+            const serviceData = {
+                id: editingService ? editingService.id : Date.now().toString(),
+                date: document.getElementById('serviceDate').value,
+                serviceTypeId: selectedServiceTypeId,
+                isSubstitute: document.getElementById('isSubstitute').checked,
+                notes: document.getElementById('serviceNotes').value
+            };
+            
+            // Debug: Log the raw date value being stored
+            console.log('Raw date value from input:', document.getElementById('serviceDate').value);
+            console.log('Service data being stored:', serviceData);
+            
+            if (editingService) {
+                const index = services.findIndex(s => s.id === editingService.id);
+                if (index !== -1) {
+                    services[index] = serviceData;
+                }
+            } else {
+                services.push(serviceData);
+            }
+            
+            saveUserData();
+            renderCalendar();
+            
+            // Navigate salary view to the month where the service was added
+            const serviceDate = new Date(serviceData.date);
+            console.log('Service added - original salaryDate:', salaryDate.toISOString());
+            console.log('Service date:', serviceDate.toISOString());
+            salaryDate.setFullYear(serviceDate.getFullYear());
+            salaryDate.setMonth(serviceDate.getMonth());
+            console.log('Updated salaryDate:', salaryDate.toISOString());
+            
+            updateSalaryOverview();
+            updateHoursOverview();
+            closeServiceModal();
+        });
+
+        // Free Modal management
+        function openFreeModal(date = null) {
+            const modal = document.getElementById('freeModal');
+            const form = document.getElementById('freeForm');
+            
+            if (date) {
+                document.getElementById('freeDate').value = date.toISOString().split('T')[0];
+            }
+            
+            document.getElementById('freeModalTitle').textContent = editingFreeDay ? 'Frei bearbeiten' : 'Frei hinzufügen';
+            document.getElementById('deleteFreeBtn').style.display = editingFreeDay ? 'block' : 'none';
+            
+            if (editingFreeDay) {
+                document.getElementById('freeDate').value = editingFreeDay.date;
+                document.getElementById('freeType').value = editingFreeDay.type;
+                document.getElementById('freeNotes').value = editingFreeDay.notes || '';
+            } else if (!document.getElementById('freeDate').value) {
+                form.reset();
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function closeFreeModal() {
+            document.getElementById('freeModal').style.display = 'none';
+            editingFreeDay = null;
+        }
+
+        function editFreeDay(freeDay) {
+            editingFreeDay = freeDay;
+            openFreeModal();
+        }
+
+        function deleteFree() {
+            if (editingFreeDay && confirm('Frei-Tag wirklich löschen?')) {
+                // Save state before making changes
+                saveState();
+                
+                freeDays = freeDays.filter(f => f.id !== editingFreeDay.id);
+                saveUserData();
+                renderCalendar();
+                
+                // Navigate salary view to the month where the free day was deleted
+                const freeDate = new Date(editingFreeDay.date);
+                salaryDate.setFullYear(freeDate.getFullYear());
+                salaryDate.setMonth(freeDate.getMonth());
+                
+                updateSalaryOverview();
+                updateHoursOverview();
+                closeFreeModal();
+            }
+        }
+
+        // Free form handling
+        document.getElementById('freeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const selectedFreeType = document.getElementById('freeType').value;
+            if (!selectedFreeType) {
+                showMessage('Bitte eine Art des Freis auswählen', 'error');
+                return;
+            }
+            
+            // Save state before making changes
+            saveState();
+            
+            const freeData = {
+                id: editingFreeDay ? editingFreeDay.id : Date.now().toString(),
+                date: document.getElementById('freeDate').value,
+                type: selectedFreeType,
+                notes: document.getElementById('freeNotes').value
+            };
+            
+            if (editingFreeDay) {
+                const index = freeDays.findIndex(f => f.id === editingFreeDay.id);
+                if (index !== -1) {
+                    freeDays[index] = freeData;
+                }
+            } else {
+                freeDays.push(freeData);
+            }
+            
+            saveUserData();
+            renderCalendar();
+            
+            // Navigate salary view to the month where the free day was added
+            const freeDate = new Date(freeData.date);
+            salaryDate.setFullYear(freeDate.getFullYear());
+            salaryDate.setMonth(freeDate.getMonth());
+            
+            updateSalaryOverview();
+            updateHoursOverview();
+            closeFreeModal();
+        });
+
+        // Service Type management
+        function openServiceTypeModal() {
+            const modal = document.getElementById('serviceTypeModal');
+            const form = document.getElementById('serviceTypeForm');
+            
+            document.getElementById('serviceTypeModalTitle').textContent = editingServiceType ? 'Dienst-Typ bearbeiten' : 'Neuer Dienst-Typ';
+            document.getElementById('deleteServiceTypeBtn').style.display = editingServiceType ? 'block' : 'none';
+            
+            if (editingServiceType) {
+                document.getElementById('serviceTypeName').value = editingServiceType.name;
+                document.getElementById('serviceStartTime').value = editingServiceType.startTime;
+                document.getElementById('serviceEndTime').value = editingServiceType.endTime;
+                document.getElementById('workTimePercentage').value = editingServiceType.workTimePercentage;
+                document.getElementById('changeTime').value = editingServiceType.changeTime || 0;
+                document.getElementById('serviceTypeAddress').value = editingServiceType.address || '';
+                document.getElementById('serviceColor').value = editingServiceType.color;
+                document.getElementById('serviceTypeIsOnCall').checked = editingServiceType.isOnCall || false;
+            } else {
+                form.reset();
+                document.getElementById('serviceColor').value = '#28a745';
+                document.getElementById('workTimePercentage').value = 100;
+                document.getElementById('serviceTypeIsOnCall').checked = false;
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function closeServiceTypeModal() {
+            document.getElementById('serviceTypeModal').style.display = 'none';
+            editingServiceType = null;
+        }
+
+        function editServiceType(serviceType) {
+            editingServiceType = serviceType;
+            openServiceTypeModal();
+        }
+
+        function deleteServiceType() {
+            if (editingServiceType && confirm('Dienst-Typ wirklich löschen? Alle zugehörigen Dienste werden ebenfalls gelöscht.')) {
+                services = services.filter(s => s.serviceTypeId !== editingServiceType.id);
+                serviceTypes = serviceTypes.filter(st => st.id !== editingServiceType.id);
+                saveUserData();
+                renderServiceTypes();
+                renderCalendar();
+                updateHoursOverview();
+                closeServiceTypeModal();
+            }
+        }
+
+        // Service Type form handling
+        document.getElementById('serviceTypeForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const serviceTypeData = {
+                id: editingServiceType ? editingServiceType.id : Date.now().toString(),
+                name: document.getElementById('serviceTypeName').value,
+                startTime: document.getElementById('serviceStartTime').value,
+                endTime: document.getElementById('serviceEndTime').value,
+                workTimePercentage: parseFloat(document.getElementById('workTimePercentage').value),
+                changeTime: parseInt(document.getElementById('changeTime').value) || 0,
+                address: document.getElementById('serviceTypeAddress').value,
+                color: document.getElementById('serviceColor').value,
+                isOnCall: document.getElementById('serviceTypeIsOnCall').checked
+            };
+            
+            if (editingServiceType) {
+                const index = serviceTypes.findIndex(st => st.id === editingServiceType.id);
+                serviceTypes[index] = serviceTypeData;
+            } else {
+                serviceTypes.push(serviceTypeData);
+            }
+            
+            saveUserData();
+            renderServiceTypes();
+            updateServiceTypeOptions();
+            updateHoursOverview();
+            closeServiceTypeModal();
+        });
+
+        function renderServiceTypes() {
+            const container = document.getElementById('serviceTypesList');
+            container.innerHTML = '';
+            
+            serviceTypes.forEach(serviceType => {
+                const item = document.createElement('div');
+                item.className = 'service-type-item';
+                
+                const info = document.createElement('div');
+                info.className = 'service-type-info';
+                
+                const name = document.createElement('div');
+                name.className = 'service-type-name';
+                name.textContent = serviceType.name;
+                
+                const details = document.createElement('div');
+                details.className = 'service-type-details';
+                details.textContent = `${serviceType.startTime} - ${serviceType.endTime} | ${serviceType.workTimePercentage}% Arbeitszeit`;
+                if (serviceType.changeTime > 0) {
+                    details.textContent += ` | ${serviceType.changeTime} Min. Umziehen`;
+                }
+                if (serviceType.address) {
+                    details.textContent += ` | ${serviceType.address}`;
+                }
+                if (serviceType.isOnCall) {
+                    details.textContent += ` | Rufbereitschaftsdienst`;
+                }
+                
+                info.appendChild(name);
+                info.appendChild(details);
+                
+                const editBtn = document.createElement('button');
+                editBtn.className = 'btn btn-primary btn-small';
+                editBtn.textContent = 'Bearbeiten';
+                editBtn.onclick = () => editServiceType(serviceType);
+                
+                item.appendChild(info);
+                item.appendChild(editBtn);
+                container.appendChild(item);
+            });
+        }
+
+        // Custom Items Management
+        function openCustomItemModal(category) {
+            currentCustomItemCategory = category;
+            const modal = document.getElementById('customItemModal');
+            const form = document.getElementById('customItemForm');
+            
+            let title = 'Benutzerdefinierten Eintrag hinzufügen';
+            switch(category) {
+                case 'basic': title = 'Grundgehalt-Eintrag hinzufügen'; break;
+                case 'bonus': title = 'Zuschlag hinzufügen'; break;
+                case 'benefit': title = 'Pauschale hinzufügen'; break;
+            }
+            
+            document.getElementById('customItemModalTitle').textContent = editingCustomItem ? title.replace('hinzufügen', 'bearbeiten') : title;
+            document.getElementById('deleteCustomItemBtn').style.display = editingCustomItem ? 'block' : 'none';
+            
+            if (editingCustomItem) {
+                document.getElementById('customItemName').value = editingCustomItem.name;
+                document.getElementById('customItemAmount').value = editingCustomItem.amount;
+                document.getElementById('customItemType').value = editingCustomItem.type;
+            } else {
+                form.reset();
+            }
+            
+            modal.style.display = 'block';
+        }
+
+        function closeCustomItemModal() {
+            document.getElementById('customItemModal').style.display = 'none';
+            editingCustomItem = null;
+            currentCustomItemCategory = null;
+        }
+
+        function editCustomItem(item, category) {
+            editingCustomItem = item;
+            currentCustomItemCategory = category;
+            openCustomItemModal(category);
+        }
+
+        function deleteCustomItem() {
+            if (editingCustomItem && currentCustomItemCategory && confirm('Eintrag wirklich löschen?')) {
+                const categoryKey = `custom${currentCustomItemCategory.charAt(0).toUpperCase() + currentCustomItemCategory.slice(1)}Items`;
+                salarySettings[categoryKey] = salarySettings[categoryKey].filter(item => item.id !== editingCustomItem.id);
+                saveUserData();
+                renderCustomItems();
+                updateSalaryOverview();
+                closeCustomItemModal();
+            }
+        }
+
+        // Custom Item form handling
+        document.getElementById('customItemForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const itemData = {
+                id: editingCustomItem ? editingCustomItem.id : Date.now().toString(),
+                name: document.getElementById('customItemName').value,
+                amount: parseFloat(document.getElementById('customItemAmount').value),
+                type: document.getElementById('customItemType').value
+            };
+            
+            const categoryKey = `custom${currentCustomItemCategory.charAt(0).toUpperCase() + currentCustomItemCategory.slice(1)}Items`;
+            
+            if (editingCustomItem) {
+                const index = salarySettings[categoryKey].findIndex(item => item.id === editingCustomItem.id);
+                salarySettings[categoryKey][index] = itemData;
+            } else {
+                if (!salarySettings[categoryKey]) {
+                    salarySettings[categoryKey] = [];
+                }
+                salarySettings[categoryKey].push(itemData);
+            }
+            
+            saveUserData();
+            renderCustomItems();
+            updateSalaryOverview();
+            closeCustomItemModal();
+        });
+
+        function renderCustomItems() {
+            renderCustomItemsForCategory('basic', 'customBasicItems');
+            renderCustomItemsForCategory('bonus', 'customBonusItems');
+            renderCustomItemsForCategory('benefit', 'customBenefitItems');
+        }
+
+        function renderCustomItemsForCategory(category, containerId) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            container.innerHTML = '';
+            
+            const categoryKey = `custom${category.charAt(0).toUpperCase() + category.slice(1)}Items`;
+            const items = salarySettings[categoryKey] || [];
+            
+            items.forEach(item => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'custom-item';
+                
+                const info = document.createElement('div');
+                info.innerHTML = `
+                    <strong>${item.name}</strong><br>
+                    <small>${item.amount}€ (${getTypeDescription(item.type)})</small>
+                `;
+                
+                const actions = document.createElement('div');
+                actions.className = 'custom-item-actions';
+                
+                const editBtn = document.createElement('button');
+                editBtn.className = 'btn btn-primary btn-small';
+                editBtn.textContent = 'Bearbeiten';
+                editBtn.onclick = () => editCustomItem(item, category);
+                
+                actions.appendChild(editBtn);
+                
+                itemDiv.appendChild(info);
+                itemDiv.appendChild(actions);
+                container.appendChild(itemDiv);
+            });
+        }
+
+        function getTypeDescription(type) {
+            const descriptions = {
+                'fixed': 'Monatlich',
+                'per_service': 'Pro Dienst',
+                'per_hour': 'Pro Stunde'
+            };
+            return descriptions[type] || type;
+        }
+
+        // Improved work hours calculation with decimal support
+        function calculateWorkHours(service) {
+            const serviceType = serviceTypes.find(st => st.id === service.serviceTypeId);
+            if (!serviceType) return 0;
+            
+            const startTime = new Date(`2000-01-01T${serviceType.startTime}`);
+            const endTime = new Date(`2000-01-01T${serviceType.endTime}`);
+            
+            // Calculate work hours
+            let workHours = (endTime - startTime) / (1000 * 60 * 60);
+            if (workHours < 0) workHours += 24; // Handle overnight shifts
+            
+            // Apply work time percentage (now supports decimals)
+            workHours = (workHours * serviceType.workTimePercentage) / 100;
+            
+            // Add change time
+            if (serviceType.changeTime > 0) {
+                workHours += serviceType.changeTime / 60;
+            }
+            
+            return workHours;
+        }
+
+        // Hours overview calculation - COMPLETELY REWRITTEN
+        function calculateHoursData() {
+            const currentMonth = currentDate.getMonth();
+            const currentYear = currentDate.getFullYear();
+            
+            console.log('=== CALCULATE HOURS DATA ===');
+            console.log('Current month:', currentMonth + 1, 'year:', currentYear);
+            
+            // 1. Calculate current month's work hours
+            let totalWorkTime = 0;
+            const monthServices = services.filter(service => {
+                const serviceDate = new Date(service.date);
+                const isCurrentMonth = serviceDate.getMonth() === currentMonth && serviceDate.getFullYear() === currentYear;
+                return isCurrentMonth;
+            });
+            
+            monthServices.forEach(service => {
+                totalWorkTime += calculateWorkHours(service);
+            });
+            
+            console.log('Current month work time:', totalWorkTime, 'hours');
+            
+            // 2. Calculate overtime free days impact
+            const monthFreeDays = freeDays.filter(freeDay => {
+                const freeDate = new Date(freeDay.date);
+                const isCurrentMonth = freeDate.getMonth() === currentMonth && freeDate.getFullYear() === currentYear;
+                return isCurrentMonth && freeDay.type === 'overtime';
+            });
+            
+            const overtimeFreeHours = monthFreeDays.length * 12; // 12 hours per overtime free day
+            console.log('Overtime free days this month:', monthFreeDays.length, 'hours impact:', overtimeFreeHours);
+            
+            // 3. Calculate monthly overtime
+            const targetHours = salarySettings.targetHoursPerMonth || 170;
+            const monthlyOvertime = totalWorkTime - targetHours - overtimeFreeHours;
+            console.log('Monthly overtime (including free days):', monthlyOvertime, 'hours');
+            
+            // Debug: Show available overtime history
+            console.log('Available overtime history:', overtimeHistory);
+            
+            // 4. Check for manual overtime for current month
+            const currentMonthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+            const nextMonthKey = currentMonth === 11 
+                ? `${currentYear + 1}-01` 
+                : `${currentYear}-${String(currentMonth + 2).padStart(2, '0')}`;
+            
+            let manualOvertimeForCurrentMonth = 0;
+            if (salarySettings.manualOvertimeMonth) {
+                const [manualYear, manualMonth] = salarySettings.manualOvertimeMonth.split('-').map(Number);
+                const manualMonthKey = `${manualYear}-${String(manualMonth).padStart(2, '0')}`;
+                
+                if (manualMonthKey === currentMonthKey) {
+                    // Manual overtime for current month - this should be shown as "previous overtime"
+                    manualOvertimeForCurrentMonth = salarySettings.manualOvertimeHours || 0;
+                    console.log('Manual overtime for current month:', manualOvertimeForCurrentMonth, 'hours');
+                }
+            }
+            
+            // 5. Get previous month's overtime
+            const monthKey = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}`;
+            const previousMonthKey = currentMonth === 0 
+                ? `${currentYear - 1}-12` 
+                : `${currentYear}-${String(currentMonth).padStart(2, '0')}`;
+            
+            let previousOvertime = overtimeHistory[previousMonthKey] || 0;
+            
+            // If we have manual overtime for current month, use that instead of previous overtime
+            if (manualOvertimeForCurrentMonth > 0) {
+                previousOvertime = manualOvertimeForCurrentMonth;
+                console.log('Using manual overtime as previous overtime:', previousOvertime);
+            } else {
+                console.log('Using previous overtime from history:', previousOvertime);
+            }
+            
+            // Debug: Show what we're looking for
+            console.log('Looking for previous month key:', previousMonthKey);
+            console.log('Available overtime history keys:', Object.keys(overtimeHistory));
+            console.log('Previous overtime value:', overtimeHistory[previousMonthKey]);
+            
+            // 6. Calculate total overtime
+            const totalOvertime = previousOvertime + monthlyOvertime;
+            
+            console.log('Final result - previous:', previousOvertime, 'monthly:', monthlyOvertime, 'total:', totalOvertime);
+            console.log('=== END CALCULATE HOURS DATA ===');
+            
+            return {
+                targetHours,
+                actualHours: totalWorkTime,
+                overtimeFreeHours,
+                monthlyOvertime,
+                previousOvertime,
+                totalOvertime,
+                monthKey
+            };
+        }
+
+        function updateHoursOverview() {
+            console.log('=== UPDATE HOURS OVERVIEW ===');
+            
+            const hoursData = calculateHoursData();
+            const currentMonth = currentDate.getMonth();
+            const currentYear = currentDate.getFullYear();
+            const monthName = new Date(currentDate.getFullYear(), currentDate.getMonth()).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+            
+            // Update display
+            document.getElementById('hoursMonth').textContent = monthName;
+            document.getElementById('hoursMonthDetail').textContent = monthName;
+            document.getElementById('vacationMonth').textContent = monthName;
+            
+            document.getElementById('targetHours').textContent = roundCommercial(hoursData.targetHours, 1).toFixed(1) + ' h';
+            document.getElementById('actualHours').textContent = roundCommercial(hoursData.actualHours, 1).toFixed(1) + ' h';
+            document.getElementById('overtimeFreeHours').textContent = roundCommercial(hoursData.overtimeFreeHours, 1).toFixed(1) + ' h';
+            document.getElementById('monthlyOvertime').textContent = roundCommercial(hoursData.monthlyOvertime, 1).toFixed(1) + ' h';
+            document.getElementById('previousOvertime').textContent = roundCommercial(hoursData.previousOvertime, 1).toFixed(1) + ' h';
+            document.getElementById('currentMonthOvertime').textContent = roundCommercial(hoursData.monthlyOvertime, 1).toFixed(1) + ' h';
+            document.getElementById('overtimePaymentHours').textContent = roundCommercial(overtimePaymentHours, 1).toFixed(1) + ' h';
+            document.getElementById('totalOvertime').textContent = roundCommercial(hoursData.totalOvertime - overtimePaymentHours, 1).toFixed(1) + ' h';
+            
+            // Update vacation display
+            const vacationDaysPerYear = salarySettings.vacationDaysPerYear || 30;
+            const takenVacationDays = calculateTakenVacationDays(currentYear);
+            const remainingVacationDays = vacationDaysPerYear - takenVacationDays;
+            
+            document.getElementById('vacationDaysPerYearDisplay').textContent = vacationDaysPerYear + ' Tage';
+            document.getElementById('takenVacationDays').textContent = takenVacationDays + ' Tage';
+            document.getElementById('remainingVacationDays').textContent = remainingVacationDays + ' Tage';
+            
+            // Show payment info if there's an active payment
+            if (overtimePayment > 0) {
+                document.getElementById('overtimeBruttoPayment').textContent = roundCommercial(overtimePayment).toFixed(2) + ' €';
+                document.getElementById('overtimePaymentInfo').style.display = 'block';
+            } else {
+                document.getElementById('overtimePaymentInfo').style.display = 'none';
+            }
+            
+            // Save overtime history
+            const currentMonthStart = new Date(currentYear, currentMonth, 1);
+            
+            console.log('Saving overtime for month:', hoursData.monthKey);
+            console.log('Current month start:', currentMonthStart);
+            
+            // Save overtime to history
+            overtimeHistory[hoursData.monthKey] = hoursData.totalOvertime;
+            console.log('SAVED overtime:', hoursData.totalOvertime, 'for month:', hoursData.monthKey);
+            console.log('Updated overtime history:', overtimeHistory);
+            
+            console.log('=== END UPDATE HOURS OVERVIEW ===');
+        }
+
+        function calculateTakenVacationDays(year) {
+            // Berechne genommene Urlaubstage aus den Frei-Tagen
+            const vacationDays = freeDays.filter(freeDay => {
+                const freeDate = new Date(freeDay.date);
+                return freeDate.getFullYear() === year && freeDay.type === 'vacation';
+            });
+            
+            return vacationDays.length;
+        }
+
+        function payOutOvertime() {
+            const hoursToPay = parseFloat(document.getElementById('overtimeHoursToPay').value);
+            
+            if (!hoursToPay || hoursToPay <= 0) {
+                showMessage('Bitte gültige Anzahl Stunden eingeben', 'error');
+                return;
+            }
+            
+            const hoursData = calculateHoursData();
+            
+            if (hoursToPay > hoursData.totalOvertime) {
+                showMessage('Nicht genügend Überstunden vorhanden', 'error');
+                return;
+            }
+            
+            // Calculate hourly rate and overtime bonus
+            const hourlyRate = roundCommercial(salarySettings.basicSalary / salarySettings.targetHoursPerMonth);
+            const overtimeBonus = roundCommercial(hourlyRate * salarySettings.overtimeHourlyRate / 100);
+            const totalHourlyRate = roundCommercial(hourlyRate + overtimeBonus);
+            
+            // Calculate payment
+            overtimePayment = hoursToPay * totalHourlyRate;
+            overtimePaymentHours = hoursToPay;
+            
+            // Show payment info
+            document.getElementById('overtimeBruttoPayment').textContent = roundCommercial(overtimePayment).toFixed(2) + ' €';
+            document.getElementById('overtimePaymentInfo').style.display = 'block';
+            
+            // Update all displays immediately
+            updateSalaryOverview();
+            updateHoursOverview();
+            saveUserData();
+            
+            showMessage(`${hoursToPay} Überstunden erfolgreich ausgezahlt: ${roundCommercial(overtimePayment).toFixed(2)} €`, 'success');
+        }
+
+        function cancelOvertimePayment() {
+            // Reset overtime payment
+            overtimePayment = 0;
+            overtimePaymentHours = 0;
+            
+            // Hide payment info
+            document.getElementById('overtimePaymentInfo').style.display = 'none';
+            document.getElementById('overtimeHoursToPay').value = '';
+            
+            // Update displays
+            updateHoursOverview();
+            updateSalaryOverview();
+            saveUserData();
+            
+            showMessage('Überstunden-Auszahlung wurde storniert', 'success');
+        }
+
+        // Helper function for commercial rounding
+        function roundCommercial(value, decimals = 2) {
+            const factor = Math.pow(10, decimals);
+            return Math.round(value * factor) / factor;
+        }
+
+        // FIXED: Night shift detection with configurable times
+        function isNightShift(serviceType, serviceDate) {
+            const nightStart = salarySettings.nightShiftStart || '22:00';
+            const nightEnd = salarySettings.nightShiftEnd || '06:00';
+            
+            const serviceStart = serviceType.startTime;
+            const serviceEnd = serviceType.endTime;
+            
+            // Convert times to minutes for easier comparison
+            function timeToMinutes(timeStr) {
+                const [hours, minutes] = timeStr.split(':').map(Number);
+                return hours * 60 + minutes;
+            }
+            
+            const nightStartMin = timeToMinutes(nightStart);
+            const nightEndMin = timeToMinutes(nightEnd);
+            const serviceStartMin = timeToMinutes(serviceStart);
+            const serviceEndMin = timeToMinutes(serviceEnd);
+            
+            let totalNightHours = 0;
+            
+            // Handle overnight night period (e.g., 23:00 - 06:00)
+            if (nightStartMin > nightEndMin) {
+                // Night period spans midnight
+                
+                // Check overlap with first part of night period (nightStart to midnight)
+                if (serviceStartMin < 24 * 60 && serviceEndMin > nightStartMin) {
+                    const overlapStart = Math.max(serviceStartMin, nightStartMin);
+                    const overlapEnd = Math.min(serviceEndMin, 24 * 60);
+                    totalNightHours += (overlapEnd - overlapStart) / 60;
+                }
+                
+                // Check overlap with second part of night period (midnight to nightEnd)
+                if (serviceStartMin < nightEndMin && serviceEndMin > 0) {
+                    const overlapStart = Math.max(serviceStartMin, 0);
+                    const overlapEnd = Math.min(serviceEndMin, nightEndMin);
+                    totalNightHours += (overlapEnd - overlapStart) / 60;
+                }
+                
+                // If service spans midnight, handle the overnight service properly
+                if (serviceEndMin < serviceStartMin) {
+                    // Service spans midnight
+                    
+                    // Check overlap with first part of night period (nightStart to midnight) for the first day
+                    if (serviceStartMin < 24 * 60) {
+                        const overlapStart = Math.max(serviceStartMin, nightStartMin);
+                        const overlapEnd = 24 * 60; // midnight
+                        if (overlapEnd > overlapStart) {
+                            totalNightHours += (overlapEnd - overlapStart) / 60;
+                        }
+                    }
+                    
+                    // Check overlap with second part of night period (midnight to nightEnd) for the second day
+                    if (serviceEndMin > 0) {
+                        const overlapStart = 0; // midnight
+                        const overlapEnd = Math.min(serviceEndMin, nightEndMin);
+                        if (overlapEnd > overlapStart) {
+                            totalNightHours += (overlapEnd - overlapStart) / 60;
+                        }
+                    }
+                }
+            } else {
+                // Same-day night period (e.g., 06:00 - 22:00)
+                
+                // Simple overlap calculation for same-day periods
+                if (serviceStartMin < nightEndMin && serviceEndMin > nightStartMin) {
+                    const overlapStart = Math.max(serviceStartMin, nightStartMin);
+                    const overlapEnd = Math.min(serviceEndMin, nightEndMin);
+                    totalNightHours += (overlapEnd - overlapStart) / 60;
+                }
+                
+                // If service spans midnight, check overlap with next day's night period
+                if (serviceEndMin < serviceStartMin) {
+                    const nextDayServiceStart = serviceStartMin;
+                    const nextDayServiceEnd = serviceEndMin + 24 * 60;
+                    
+                    if (nextDayServiceStart < nightEndMin && nextDayServiceEnd > nightStartMin) {
+                        const overlapStart = Math.max(nextDayServiceStart, nightStartMin);
+                        const overlapEnd = Math.min(nextDayServiceEnd, nightEndMin);
+                        totalNightHours += (overlapEnd - overlapStart) / 60;
+                    }
+                }
+            }
+            
+            return totalNightHours; // Return actual overlap hours
+        }
+
+        function calculateSundayHours(serviceType, serviceDate) {
+            const startTime = new Date(`2000-01-01T${serviceType.startTime}`);
+            const endTime = new Date(`2000-01-01T${serviceType.endTime}`);
+            
+            // Convert service times to minutes
+            const serviceStartMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+            const serviceEndMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+            
+            let sundayHours = 0;
+            
+            // Handle overnight shifts
+            if (serviceEndMinutes < serviceStartMinutes) {
+                // Service spans midnight - check if it starts on Sunday
+                const dayOfWeek = serviceDate.getDay();
+                if (dayOfWeek === 0) {
+                    // Service starts on Sunday
+                    // Calculate hours from service start to midnight (Sunday part)
+                    const sundayPart = (1440 - serviceStartMinutes) / 60;
+                    sundayHours = sundayPart * (serviceType.workTimePercentage / 100);
+                } else if (dayOfWeek === 1) {
+                    // Service starts on Monday (ends on Monday)
+                    // Check if the previous day (Sunday) is the service date
+                    const previousDay = new Date(serviceDate);
+                    previousDay.setDate(previousDay.getDate() - 1);
+                    if (previousDay.getDay() === 0) {
+                        // Service ends on Monday, started on Sunday
+                        // Calculate hours from midnight to service end (Sunday part)
+                        const sundayPart = serviceEndMinutes / 60;
+                        sundayHours = sundayPart * (serviceType.workTimePercentage / 100);
+                    }
+                }
+            } else {
+                // Service doesn't span midnight - only count if it's on Sunday
+                const dayOfWeek = serviceDate.getDay();
+                if (dayOfWeek === 0) {
+                    // Service is entirely on Sunday
+                    const totalMinutes = serviceEndMinutes - serviceStartMinutes;
+                    sundayHours = (totalMinutes / 60) * (serviceType.workTimePercentage / 100);
+                }
+            }
+            
+            return sundayHours;
+        }
+
+        function calculateHolidayHours(serviceType, serviceDate, holidays) {
+            const startTime = new Date(`2000-01-01T${serviceType.startTime}`);
+            const endTime = new Date(`2000-01-01T${serviceType.endTime}`);
+            
+            // Convert service times to minutes
+            const serviceStartMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+            const serviceEndMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+            
+            // Convert serviceDate to string format for holidays lookup
+            const serviceDateStr = `${serviceDate.getFullYear()}-${String(serviceDate.getMonth() + 1).padStart(2, '0')}-${String(serviceDate.getDate()).padStart(2, '0')}`;
+            
+            let holidayHours = 0;
+            
+            // Handle overnight shifts
+            if (serviceEndMinutes < serviceStartMinutes) {
+                // Service spans midnight - check if it starts on a holiday
+                const isHoliday = holidays[serviceDateStr];
+                
+                if (isHoliday) {
+                    // Service starts on a holiday
+                    // Calculate hours from service start to midnight (holiday part)
+                    const holidayPart = (1440 - serviceStartMinutes) / 60;
+                    holidayHours = holidayPart * (serviceType.workTimePercentage / 100);
+                } else {
+                    // Check if service ends on the next day and that day is a holiday
+                    const nextDay = new Date(serviceDate);
+                    nextDay.setDate(nextDay.getDate() + 1);
+                    const nextDayStr = `${nextDay.getFullYear()}-${String(nextDay.getMonth() + 1).padStart(2, '0')}-${String(nextDay.getDate()).padStart(2, '0')}`;
+                    const isNextDayHoliday = holidays[nextDayStr];
+                    
+                    if (isNextDayHoliday) {
+                        // Service ends on a holiday (next day)
+                        // Calculate hours from midnight to service end (holiday part)
+                        const holidayPart = serviceEndMinutes / 60;
+                        holidayHours = holidayPart * (serviceType.workTimePercentage / 100);
+                    }
+                }
+            } else {
+                // Service doesn't span midnight - only count if it's on a holiday
+                const isHoliday = holidays[serviceDateStr];
+                if (isHoliday) {
+                    // Service is entirely on a holiday
+                    const totalMinutes = serviceEndMinutes - serviceStartMinutes;
+                    holidayHours = (totalMinutes / 60) * (serviceType.workTimePercentage / 100);
+                }
+            }
+            
+            return holidayHours;
+        }
+
+        // FIXED: Improved salary calculations with proper Sunday detection
+        function calculateSalary() {
+            const currentMonth = salaryDate.getMonth();
+            const currentYear = salaryDate.getFullYear();
+            
+            const monthServices = services.filter(service => {
+                const serviceDate = new Date(service.date);
+                
+                // Check if service is in current month and year
+                const isCurrentMonth = serviceDate.getMonth() === currentMonth && serviceDate.getFullYear() === currentYear;
+                return isCurrentMonth;
+            });
+            
+            // Get holidays for the current year and state
+            const holidays = getHolidaysForYear(currentYear, salarySettings.federalState);
+            
+            let totalWorkTime = 0;
+            let nightShiftHours = 0;
+            let sundayHours = 0;
+            let holidayHours = 0;
+            let sundayHolidayHours = 0;
+            let substituteHours = 0;
+            let substituteHourlyBonus = 0;
+            let substituteHourlyHours = 0;
+            
+            // Custom item calculations
+            let customBasicTotal = 0;
+            let customBonusTotal = 0;
+            let customBenefitTotal = 0;
+            
+            monthServices.forEach(service => {
+                const workHours = calculateWorkHours(service);
+                totalWorkTime += workHours;
+                
+                                    // Parse date correctly in local timezone
+                    const [year, month, day] = service.date.split('-').map(Number);
+                    const serviceDate = new Date(year, month - 1, day); // month is 0-indexed in Date constructor
+                    
+                    // Debug: Log the date parsing details
+                    console.log('Date parsing debug:', {
+                        originalDate: service.date,
+                        year: year,
+                        month: month,
+                        day: day,
+                        constructedDate: serviceDate.toISOString(),
+                        dayOfWeek: serviceDate.getDay(),
+                        isSunday: serviceDate.getDay() === 0
+                    });
+                const serviceType = serviceTypes.find(st => st.id === service.serviceTypeId);
+                if (!serviceType) return;
+                
+                // Calculate work hours without change time for bonus calculations
+                const startTime = new Date(`2000-01-01T${serviceType.startTime}`);
+                const endTime = new Date(`2000-01-01T${serviceType.endTime}`);
+                let workHoursWithoutChangeTime = (endTime - startTime) / (1000 * 60 * 60);
+                if (workHoursWithoutChangeTime < 0) workHoursWithoutChangeTime += 24; // Handle overnight shifts
+                workHoursWithoutChangeTime = (workHoursWithoutChangeTime * serviceType.workTimePercentage) / 100;
+                
+                // FIXED Sunday detection - Sunday is day 0, Monday is 1, etc.
+                const dayOfWeek = serviceDate.getDay();
+                const isSunday = dayOfWeek === 0;
+                const isHoliday = holidays[service.date];
+                const nightHours = isNightShift(serviceType, serviceDate);
+                
+                // Debug logging for all services to check date parsing
+                console.log('Service date check:', {
+                    originalDate: service.date,
+                    parsedDate: serviceDate.toISOString(),
+                    dayOfWeek: dayOfWeek,
+                    isSunday: isSunday,
+                    serviceDateLocal: serviceDate.toLocaleDateString()
+                });
+                
+                // Debug logging for Sunday services
+                if (isSunday) {
+                    console.log('Sunday service detected:', {
+                        serviceDate: service.date,
+                        dayOfWeek: dayOfWeek,
+                        workHoursWithoutChangeTime: workHoursWithoutChangeTime,
+                        isHoliday: isHoliday,
+                        currentSundayHours: sundayHours
+                    });
+                }
+                
+                // Add actual night hours overlap (skip for on-call services)
+                if (!serviceType.isOnCall) {
+                    nightShiftHours += nightHours;
+                }
+                
+                // Calculate actual Sunday hours (not entire service time)
+                const sundayHoursForService = calculateSundayHours(serviceType, serviceDate);
+                
+                // Calculate actual holiday hours (not entire service time)
+                const holidayHoursForService = calculateHolidayHours(serviceType, serviceDate, holidays);
+                
+                // FIXED bonus calculation - check Sunday AND Holiday combination first
+                // Skip bonuses for on-call services
+                if (!serviceType.isOnCall) {
+                    if (isSunday && isHoliday) {
+                        sundayHolidayHours += sundayHoursForService;
+                        console.log('Sunday+Holiday service - added hours:', sundayHoursForService);
+                    } else if (isSunday) {
+                        sundayHours += sundayHoursForService;
+                        console.log('Sunday service - added hours:', sundayHoursForService, 'Total Sunday hours:', sundayHours);
+                    } else if (isHoliday) {
+                        holidayHours += holidayHoursForService;
+                        console.log('Holiday service - added hours:', holidayHoursForService, 'Total holiday hours:', holidayHours);
+                    }
+                } else {
+                    console.log('On-call service - skipping bonuses for:', service.date);
+                }
+                
+                if (service.isSubstitute && !serviceType.isOnCall) {
+                    substituteHours += 1; // Count substitute services, not hours
+                    // Add substitute hourly bonus hours
+                    substituteHourlyHours += workHoursWithoutChangeTime;
+                }
+                
+                // Calculate custom bonuses per service (skip for on-call services)
+                if (!serviceType.isOnCall) {
+                    (salarySettings.customBonusItems || []).forEach(item => {
+                        if (item.type === 'per_service') {
+                            customBonusTotal += item.amount;
+                        } else if (item.type === 'per_hour') {
+                            customBonusTotal += item.amount * workHours;
+                        }
+                    });
+                }
+            });
+            
+            // Calculate custom basic items (fixed monthly amounts)
+            (salarySettings.customBasicItems || []).forEach(item => {
+                if (item.type === 'fixed') {
+                    customBasicTotal += item.amount;
+                } else if (item.type === 'per_service') {
+                    customBasicTotal += item.amount * monthServices.length;
+                } else if (item.type === 'per_hour') {
+                    customBasicTotal += item.amount * totalWorkTime;
+                }
+            });
+            
+            // Calculate custom benefits (fixed monthly amounts)
+            (salarySettings.customBenefitItems || []).forEach(item => {
+                if (item.type === 'fixed') {
+                    customBenefitTotal += item.amount;
+                } else if (item.type === 'per_service') {
+                    customBenefitTotal += item.amount * monthServices.length;
+                } else if (item.type === 'per_hour') {
+                    customBenefitTotal += item.amount * totalWorkTime;
+                }
+            });
+            
+            // Calculate hourly rate for bonus calculations
+            const hourlyRate = roundCommercial(salarySettings.basicSalary / salarySettings.targetHoursPerMonth);
+            
+            // Calculate actual Euro amounts for bonuses
+            const nightShiftBonusEuro = roundCommercial(hourlyRate * salarySettings.nightShiftBonus / 100);
+            const sundayBonusEuro = roundCommercial(hourlyRate * salarySettings.sundayBonus / 100);
+            const holidayBonusEuro = roundCommercial(hourlyRate * salarySettings.holidayBonus / 100);
+            const sundayHolidayBonusEuro = roundCommercial(hourlyRate * salarySettings.sundayHolidayBonus / 100);
+            const substituteHourlyBonusEuro = roundCommercial(hourlyRate * salarySettings.substituteHourlyBonus / 100);
+            const overtimeHourlyBonusEuro = roundCommercial(hourlyRate * salarySettings.overtimeHourlyRate / 100);
+            
+            // Brutto calculations using calculated Euro amounts
+            const bruttoBasic = salarySettings.basicSalary + customBasicTotal;
+            const bruttoAllowances = salarySettings.shiftAllowance;
+            const nightBonus = roundCommercial(nightShiftHours * nightShiftBonusEuro);
+            const sundayBonus = roundCommercial(sundayHours * sundayBonusEuro);
+            const holidayBonus = roundCommercial(holidayHours * holidayBonusEuro);
+            const sundayHolidayBonus = roundCommercial(sundayHolidayHours * sundayHolidayBonusEuro);
+            const substituteBonus = roundCommercial(substituteHours * salarySettings.substituteBonus);
+            const substituteHourlyBonusTotal = roundCommercial(substituteHourlyHours * substituteHourlyBonusEuro);
+            
+            const totalBonuses = roundCommercial(nightBonus + sundayBonus + holidayBonus + sundayHolidayBonus + substituteHourlyBonusTotal + customBonusTotal);
+            const totalBenefits = roundCommercial(substituteBonus + customBenefitTotal);
+            const bruttoTotal = roundCommercial(bruttoBasic + bruttoAllowances + totalBonuses + totalBenefits + overtimePayment);
+            
+            return {
+                bruttoBasic,
+                bruttoAllowances,
+                nightBonus,
+                sundayBonus,
+                holidayBonus,
+                sundayHolidayBonus,
+                substituteBonus,
+                customBasicTotal,
+                customBonusTotal,
+                customBenefitTotal,
+                totalBonuses,
+                totalBenefits,
+                bruttoTotal,
+                totalWorkTime,
+                nightShiftHours,
+                sundayHours,
+                holidayHours,
+                sundayHolidayHours,
+                substituteHours,
+                substituteHourlyBonusTotal,
+                substituteHourlyHours
+            };
+        }
+
+        function updateSalaryOverview() {
+            const salaryData = calculateSalary();
+            console.log('Salary calculation results:', {
+                sundayHours: salaryData.sundayHours,
+                sundayBonus: salaryData.sundayBonus,
+                salaryDate: salaryDate.toISOString(),
+                monthServices: services.filter(service => {
+                    const serviceDate = new Date(service.date);
+                    return serviceDate.getMonth() === salaryDate.getMonth() && serviceDate.getFullYear() === salaryDate.getFullYear();
+                }).length
+            });
+            const container = document.getElementById('salaryBreakdown');
+            const monthName = new Date(salaryDate.getFullYear(), salaryDate.getMonth()).toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+            
+            document.getElementById('salaryMonth').textContent = monthName;
+            
+            let customBasicItemsHtml = '';
+            if (salaryData.customBasicTotal > 0) {
+                customBasicItemsHtml = `
+                    <div class="salary-item">
+                        <span>Benutzerdefinierte Einträge:</span>
+                        <span>${roundCommercial(salaryData.customBasicTotal).toFixed(2)} €</span>
+                    </div>
+                `;
+            }
+            
+            let customBonusItemsHtml = '';
+            if (salaryData.customBonusTotal > 0) {
+                customBonusItemsHtml = `
+                    <div class="salary-item">
+                        <span>Benutzerdefinierte Zuschläge:</span>
+                        <span>${roundCommercial(salaryData.customBonusTotal).toFixed(2)} €</span>
+                    </div>
+                `;
+            }
+            
+            let customBenefitItemsHtml = '';
+            if (salaryData.customBenefitTotal > 0) {
+                customBenefitItemsHtml = `
+                    <div class="salary-item">
+                        <span>Benutzerdefinierte Pauschalen:</span>
+                        <span>${roundCommercial(salaryData.customBenefitTotal).toFixed(2)} €</span>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = `
+                <div class="salary-section">
+                    <h3>Grundeinkommen</h3>
+                    <div class="salary-item">
+                        <span>Grundgehalt:</span>
+                        <span>${roundCommercial(salarySettings.basicSalary).toFixed(2)} €</span>
+                    </div>
+                    <div class="salary-item">
+                        <span>Wechselschicht-Zulage:</span>
+                        <span>${roundCommercial(salaryData.bruttoAllowances).toFixed(2)} €</span>
+                    </div>
+                    ${customBasicItemsHtml}
+                    <div class="salary-item section-total">
+                        <span>Grundeinkommen gesamt:</span>
+                        <span>${roundCommercial(salaryData.bruttoBasic + salaryData.bruttoAllowances).toFixed(2)} €</span>
+                    </div>
+                </div>
+                
+                <div class="salary-section">
+                    <h3>Zuschläge</h3>
+                    <div class="salary-item">
+                        <span>Nacht-Zuschläge (${roundCommercial(salaryData.nightShiftHours, 1).toFixed(1)}h):</span>
+                        <span>${roundCommercial(salaryData.nightBonus).toFixed(2)} €</span>
+                    </div>
+                    <div class="salary-item">
+                        <span>Sonntag-Zuschläge (${roundCommercial(salaryData.sundayHours, 1).toFixed(1)}h):</span>
+                        <span>${roundCommercial(salaryData.sundayBonus).toFixed(2)} €</span>
+                    </div>
+                    <div class="salary-item">
+                        <span>Feiertag-Zuschläge (${roundCommercial(salaryData.holidayHours, 1).toFixed(1)}h):</span>
+                        <span>${roundCommercial(salaryData.holidayBonus).toFixed(2)} €</span>
+                    </div>
+                    <div class="salary-item">
+                        <span>Sonntag + Feiertag-Zuschläge (${roundCommercial(salaryData.sundayHolidayHours, 1).toFixed(1)}h):</span>
+                        <span>${roundCommercial(salaryData.sundayHolidayBonus).toFixed(2)} €</span>
+                    </div>
+                    <div class="salary-item">
+                        <span>Einspring-Zuschläge (${roundCommercial(salaryData.substituteHourlyHours, 1).toFixed(1)}h):</span>
+                        <span>${roundCommercial(salaryData.substituteHourlyBonusTotal).toFixed(2)} €</span>
+                    </div>
+                    ${customBonusItemsHtml}
+                    <div class="salary-item section-total">
+                        <span>Gesamt Zuschläge:</span>
+                        <span>${roundCommercial(salaryData.totalBonuses).toFixed(2)} €</span>
+                    </div>
+                </div>
+                
+                <div class="salary-section">
+                    <h3>Pauschalen</h3>
+                    <div class="salary-item">
+                        <span>Einspring-Pauschalen (${salaryData.substituteHours}x):</span>
+                        <span>${roundCommercial(salaryData.substituteBonus).toFixed(2)} €</span>
+                    </div>
+                    ${customBenefitItemsHtml}
+                    <div class="salary-item section-total">
+                        <span>Gesamt Pauschalen:</span>
+                        <span>${roundCommercial(salaryData.totalBenefits).toFixed(2)} €</span>
+                    </div>
+                </div>
+                
+                <div class="salary-section">
+                    <h3>Gesamtübersicht</h3>
+                    <div class="salary-item">
+                        <span>Grundeinkommen gesamt:</span>
+                        <span>${roundCommercial(salaryData.bruttoBasic + salaryData.bruttoAllowances).toFixed(2)} €</span>
+                    </div>
+                    <div class="salary-item">
+                        <span>Zuschläge + Pauschalen:</span>
+                        <span>${roundCommercial(salaryData.nightBonus + salaryData.sundayBonus + salaryData.holidayBonus + salaryData.sundayHolidayBonus + salaryData.substituteHourlyBonusTotal + salaryData.substituteBonus + salaryData.customBenefitTotal).toFixed(2)} €</span>
+                    </div>
+                    ${overtimePayment > 0 ? `
+                    <div class="salary-item">
+                        <span>Überstunden:</span>
+                        <span>${roundCommercial(overtimePayment).toFixed(2)} €</span>
+                    </div>
+                    ` : ''}
+                    <div class="salary-item final-total">
+                        <span>Brutto Gesamteinkommen:</span>
+                        <span>${roundCommercial(salaryData.bruttoTotal).toFixed(2)} €</span>
+                    </div>
+                </div>
+                
+                <div class="salary-section">
+                    <h3>Arbeitszeit</h3>
+                    <div class="salary-item">
+                        <span>Gesamte Arbeitszeit:</span>
+                        <span>${roundCommercial(salaryData.totalWorkTime, 1).toFixed(1)} Stunden</span>
+                    </div>
+                    <div class="salary-item">
+                        <span>Stundenlohn (Brutto gesamt):</span>
+                        <span>${roundCommercial(salaryData.bruttoTotal / Math.max(salaryData.totalWorkTime, 1)).toFixed(2)} €/h</span>
+                    </div>
+                </div>
+            `;
+        }
+
+
+
+        // Generate iCal content with addresses
+        function generateICalContent() {
+            let icalContent = [
+                'BEGIN:VCALENDAR',
+                'VERSION:2.0',
+                'PRODID:-//Dienst-Kalender//DE',
+                'CALSCALE:GREGORIAN',
+                'METHOD:PUBLISH'
+            ];
+
+            // Helper function to escape iCal text content
+            function escapeICalText(text) {
+                if (!text) return '';
+                return text
+                    .replace(/\\/g, '\\\\')
+                    .replace(/;/g, '\\;')
+                    .replace(/,/g, '\\,')
+                    .replace(/\n/g, '\\n')
+                    .replace(/\r/g, '\\r');
+            }
+
+            // Add services as events
+            services.forEach(service => {
+                const serviceType = serviceTypes.find(st => st.id === service.serviceTypeId);
+                if (!serviceType) return;
+
+                const startTime = new Date(`${service.date}T${serviceType.startTime}`);
+                const endTime = new Date(`${service.date}T${serviceType.endTime}`);
+                
+                // Handle overnight shifts
+                if (endTime <= startTime) {
+                    endTime.setDate(endTime.getDate() + 1);
+                }
+
+                const eventId = service.id;
+                const summary = serviceType.name + (service.isSubstitute ? ' (E)' : '');
+                const description = service.notes || '';
+                const location = serviceType.address || '';
+
+                // Ensure location is properly formatted and complete
+                const formattedLocation = location.trim();
+
+                icalContent.push(
+                    'BEGIN:VEVENT',
+                    `UID:${eventId}@dienst-kalender`,
+                    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                    `DTSTART:${startTime.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                    `DTEND:${endTime.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                    `SUMMARY:${escapeICalText(summary)}`,
+                    `DESCRIPTION:${escapeICalText(description)}`,
+                    `LOCATION:${escapeICalText(formattedLocation)}`,
+                    'END:VEVENT'
+                );
+            });
+
+            // Add free days as events
+            freeDays.forEach(freeDay => {
+                const startTime = new Date(`${freeDay.date}T00:00`);
+                const endTime = new Date(`${freeDay.date}T23:59`);
+                
+                let summary = '';
+                if (freeDay.type === 'vacation') {
+                    summary = 'Urlaub';
+                } else if (freeDay.type === 'overtime') {
+                    summary = 'Überstundenfrei';
+                }
+
+                icalContent.push(
+                    'BEGIN:VEVENT',
+                    `UID:free-${freeDay.id}@dienst-kalender`,
+                    `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                    `DTSTART:${startTime.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                    `DTEND:${endTime.toISOString().replace(/[-:]/g, '').split('.')[0]}Z`,
+                    `SUMMARY:${escapeICalText(summary)}`,
+                    `DESCRIPTION:${escapeICalText(freeDay.notes || '')}`,
+                    'END:VEVENT'
+                );
+            });
+
+            icalContent.push('END:VCALENDAR');
+            return icalContent.join('\r\n');
+        }
+
+        function downloadICalFile() {
+            const icalContent = generateICalContent();
+            const blob = new Blob([icalContent], { type: 'text/calendar' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dienstplan-${currentUser}-${new Date().toISOString().split('T')[0]}.ics`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showMessage('iCal-Datei erfolgreich heruntergeladen! Du kannst sie jetzt in deinen Kalender importieren.', 'success');
+        }
+
+        // Settings management
+        function loadSalarySettings() {
+            document.getElementById('basicSalary').value = salarySettings.basicSalary;
+            document.getElementById('shiftAllowance').value = salarySettings.shiftAllowance;
+            document.getElementById('nightShiftBonus').value = salarySettings.nightShiftBonus;
+            document.getElementById('sundayBonus').value = salarySettings.sundayBonus;
+            document.getElementById('holidayBonus').value = salarySettings.holidayBonus;
+            document.getElementById('sundayHolidayBonus').value = salarySettings.sundayHolidayBonus;
+            document.getElementById('substituteBonus').value = salarySettings.substituteBonus;
+            document.getElementById('substituteHourlyBonus').value = salarySettings.substituteHourlyBonus || 5;
+            document.getElementById('overtimeHourlyRate').value = salarySettings.overtimeHourlyRate;
+            document.getElementById('targetHoursPerMonth').value = salarySettings.targetHoursPerMonth;
+            document.getElementById('vacationDaysPerYear').value = salarySettings.vacationDaysPerYear;
+            document.getElementById('manualOvertimeHours').value = salarySettings.manualOvertimeHours;
+            document.getElementById('manualOvertimeMonth').value = salarySettings.manualOvertimeMonth;
+            document.getElementById('nightShiftStart').value = salarySettings.nightShiftStart;
+            document.getElementById('nightShiftEnd').value = salarySettings.nightShiftEnd;
+            document.getElementById('federalState').value = salarySettings.federalState || 'HE';
+
+            
+            updateCalculatedHourlyRate();
+        }
+
+        function recalculateAllData() {
+            console.log('Recalculating all data...');
+            
+
+            
+            updateHoursOverview();
+            updateSalaryOverview();
+            renderCalendar();
+        }
+
+        function saveSalarySettings() {
+
+            
+            salarySettings.basicSalary = parseFloat(document.getElementById('basicSalary').value) || 3000;
+            salarySettings.shiftAllowance = parseFloat(document.getElementById('shiftAllowance').value) || 200;
+            salarySettings.nightShiftBonus = parseFloat(document.getElementById('nightShiftBonus').value) || 50;
+            salarySettings.sundayBonus = parseFloat(document.getElementById('sundayBonus').value) || 25;
+            salarySettings.holidayBonus = parseFloat(document.getElementById('holidayBonus').value) || 50;
+            salarySettings.sundayHolidayBonus = parseFloat(document.getElementById('sundayHolidayBonus').value) || 75;
+            salarySettings.substituteBonus = parseFloat(document.getElementById('substituteBonus').value) || 30;
+            salarySettings.substituteHourlyBonus = parseFloat(document.getElementById('substituteHourlyBonus').value) || 5;
+            salarySettings.overtimeHourlyRate = parseFloat(document.getElementById('overtimeHourlyRate').value) || 25;
+            salarySettings.targetHoursPerMonth = parseFloat(document.getElementById('targetHoursPerMonth').value) || 170;
+            salarySettings.vacationDaysPerYear = parseInt(document.getElementById('vacationDaysPerYear').value) || 30;
+            salarySettings.manualOvertimeHours = parseFloat(document.getElementById('manualOvertimeHours').value) || 0;
+            salarySettings.manualOvertimeMonth = document.getElementById('manualOvertimeMonth').value || '';
+            salarySettings.nightShiftStart = document.getElementById('nightShiftStart').value || '22:00';
+            salarySettings.nightShiftEnd = document.getElementById('nightShiftEnd').value || '06:00';
+            salarySettings.federalState = document.getElementById('federalState').value || 'HE';
+
+            
+            updateCalculatedHourlyRate();
+            saveUserData();
+            
+
+            
+            // Always recalculate all data after settings change
+            recalculateAllData();
+        }
+
+        function updateCalculatedHourlyRate() {
+            const basicSalary = parseFloat(document.getElementById('basicSalary').value) || 0;
+            const targetHours = parseFloat(document.getElementById('targetHoursPerMonth').value) || 1;
+            const hourlyRate = roundCommercial(basicSalary / targetHours);
+            
+            const calculatedHourlyRateField = document.getElementById('calculatedHourlyRate');
+            if (calculatedHourlyRateField) {
+                calculatedHourlyRateField.value = `${hourlyRate.toFixed(2)} €/h`;
+            }
+            
+            // Update calculated bonus amounts
+            updateCalculatedBonus('nightShiftBonus', 'nightShiftBonusCalculated', hourlyRate);
+            updateCalculatedBonus('sundayBonus', 'sundayBonusCalculated', hourlyRate);
+            updateCalculatedBonus('holidayBonus', 'holidayBonusCalculated', hourlyRate);
+            updateCalculatedBonus('sundayHolidayBonus', 'sundayHolidayBonusCalculated', hourlyRate);
+            updateCalculatedBonus('substituteHourlyBonus', 'substituteHourlyBonusCalculated', hourlyRate);
+            updateCalculatedBonus('overtimeHourlyRate', 'overtimeHourlyRateCalculated', hourlyRate);
+        }
+        
+        function updateCalculatedBonus(inputId, displayId, hourlyRate) {
+            const percentage = parseFloat(document.getElementById(inputId).value) || 0;
+            const calculatedAmount = roundCommercial(hourlyRate * percentage / 100);
+            
+            const displayElement = document.getElementById(displayId);
+            if (displayElement) {
+                displayElement.textContent = `${calculatedAmount.toFixed(2)} €/h`;
+            }
+        }
+
+        // Undo/Redo functions
+        function saveState() {
+            if (isUndoRedoAction) return;
+            
+            const state = {
+                services: JSON.parse(JSON.stringify(services)),
+                serviceTypes: JSON.parse(JSON.stringify(serviceTypes)),
+                freeDays: JSON.parse(JSON.stringify(freeDays)),
+                salarySettings: JSON.parse(JSON.stringify(salarySettings)),
+                overtimeHistory: JSON.parse(JSON.stringify(overtimeHistory)),
+                overtimePayment: overtimePayment,
+                overtimePaymentHours: overtimePaymentHours
+            };
+            
+            undoStack.push(state);
+            redoStack = []; // Clear redo stack when new action is performed
+            
+            console.log('State saved, undo stack length:', undoStack.length);
+            updateUndoRedoButtons();
+        }
+
+        function undo() {
+            if (undoStack.length === 0) {
+                console.log('Undo stack is empty');
+                return;
+            }
+            
+            console.log('Undo called, stack length before:', undoStack.length);
+            
+            const currentState = {
+                services: JSON.parse(JSON.stringify(services)),
+                serviceTypes: JSON.parse(JSON.stringify(serviceTypes)),
+                freeDays: JSON.parse(JSON.stringify(freeDays)),
+                salarySettings: JSON.parse(JSON.stringify(salarySettings)),
+                overtimeHistory: JSON.parse(JSON.stringify(overtimeHistory))
+            };
+            
+            redoStack.push(currentState);
+            
+            const previousState = undoStack.pop();
+            isUndoRedoAction = true;
+            
+            console.log('Before undo - services count:', services.length);
+            console.log('Previous state - services count:', previousState.services.length);
+            
+            services = previousState.services;
+            serviceTypes = previousState.serviceTypes;
+            freeDays = previousState.freeDays || [];
+            salarySettings = previousState.salarySettings;
+            overtimeHistory = previousState.overtimeHistory;
+            overtimePayment = previousState.overtimePayment || 0;
+            overtimePaymentHours = previousState.overtimePaymentHours || 0;
+            
+            console.log('After undo - services count:', services.length);
+            
+            // Save data without triggering saveState
+            if (currentUser) {
+                users[currentUser].data = {
+                    serviceTypes,
+                    services,
+                    freeDays,
+                    overtimeHistory,
+                    salarySettings,
+                    overtimePayment,
+                    overtimePaymentHours
+                };
+                saveUsers();
+            }
+            
+            renderCalendar();
+            updateSalaryOverview();
+            updateHoursOverview();
+            loadSalarySettings();
+            
+            isUndoRedoAction = false;
+            updateUndoRedoButtons();
+            
+            console.log('Undo completed, new stack length:', undoStack.length);
+        }
+
+        function redo() {
+            if (redoStack.length === 0) return;
+            
+            const currentState = {
+                services: JSON.parse(JSON.stringify(services)),
+                serviceTypes: JSON.parse(JSON.stringify(serviceTypes)),
+                freeDays: JSON.parse(JSON.stringify(freeDays)),
+                salarySettings: JSON.parse(JSON.stringify(salarySettings)),
+                overtimeHistory: JSON.parse(JSON.stringify(overtimeHistory))
+            };
+            
+            undoStack.push(currentState);
+            
+            const nextState = redoStack.pop();
+            isUndoRedoAction = true;
+            
+            services = nextState.services;
+            serviceTypes = nextState.serviceTypes;
+            freeDays = nextState.freeDays || [];
+            salarySettings = nextState.salarySettings;
+            overtimeHistory = nextState.overtimeHistory;
+            overtimePayment = nextState.overtimePayment || 0;
+            overtimePaymentHours = nextState.overtimePaymentHours || 0;
+            
+            // Save data without triggering saveState
+            if (currentUser) {
+                users[currentUser].data = {
+                    serviceTypes,
+                    services,
+                    freeDays,
+                    overtimeHistory,
+                    salarySettings,
+                    overtimePayment,
+                    overtimePaymentHours
+                };
+                saveUsers();
+            }
+            
+            renderCalendar();
+            updateSalaryOverview();
+            updateHoursOverview();
+            loadSalarySettings();
+            
+            isUndoRedoAction = false;
+            updateUndoRedoButtons();
+        }
+
+        function updateUndoRedoButtons() {
+            const undoBtn = document.getElementById('undoBtn');
+            const redoBtn = document.getElementById('redoBtn');
+            
+            if (undoBtn) undoBtn.disabled = undoStack.length === 0;
+            if (redoBtn) redoBtn.disabled = redoStack.length === 0;
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'z') {
+                    e.preventDefault();
+                    undo();
+                } else if (e.key === 'y') {
+                    e.preventDefault();
+                    redo();
+                }
+            }
+        });
+
+        // MODIFIED: User-specific data export/import (instead of all users)
+        function exportUserData() {
+            if (!currentUser) {
+                showMessage('Kein Benutzer angemeldet', 'error');
+                return;
+            }
+            
+            const userData = {
+                username: currentUser,
+                serviceTypes,
+                services,
+                overtimeHistory,
+                salarySettings,
+                exportDate: new Date().toISOString()
+            };
+            
+            const dataString = JSON.stringify(userData, null, 2);
+            const blob = new Blob([dataString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `dienst-kalender-${currentUser}-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showMessage('Deine Daten wurden erfolgreich exportiert', 'success');
+        }
+
+        function importData() {
+            const file = document.getElementById('importFile').files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const userData = JSON.parse(e.target.result);
+                    
+                    if (confirm('Aktuelle Daten werden überschrieben. Fortfahren?')) {
+                        serviceTypes = userData.serviceTypes || [];
+                        services = userData.services || [];
+                        overtimeHistory = userData.overtimeHistory || {};
+                        salarySettings = { ...salarySettings, ...userData.salarySettings };
+                        
+                        saveUserData();
+                        loadSalarySettings();
+                        renderCalendar();
+                        renderServiceTypes();
+                        updateSalaryOverview();
+                        updateHoursOverview();
+                        renderCustomItems();
+                        
+                        showMessage('Daten erfolgreich importiert', 'success');
+                    }
+                } catch (error) {
+                    showMessage('Fehler beim Importieren der Daten', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // Data persistence - FIXED to save properly
+        async function saveUserData() {
+            if (!currentUser) return;
+            
+            const user = getCurrentUser();
+            if (!user) return;
+            
+            console.log('Saving overtime history:', overtimeHistory);
+            
+            const userData = {
+                serviceTypes,
+                services,
+                freeDays,
+                overtimeHistory,
+                salarySettings,
+                overtimePayment,
+                overtimePaymentHours
+            };
+            
+            await saveUserDataToFirebase(user.uid, userData);
+        }
+
+        function loadUserData() {
+            if (!currentUser || !users[currentUser]) return;
+            
+            const userData = users[currentUser].data;
+            serviceTypes = userData.serviceTypes || [];
+            services = userData.services || [];
+            freeDays = userData.freeDays || [];
+            overtimeHistory = userData.overtimeHistory || {};
+            salarySettings = { ...salarySettings, ...userData.salarySettings };
+            overtimePayment = userData.overtimePayment || 0;
+            overtimePaymentHours = userData.overtimePaymentHours || 0;
+            
+            console.log('Loaded overtime history:', overtimeHistory);
+            
+            // Ensure custom items arrays exist
+            if (!salarySettings.customBasicItems) salarySettings.customBasicItems = [];
+            if (!salarySettings.customBonusItems) salarySettings.customBonusItems = [];
+            if (!salarySettings.customBenefitItems) salarySettings.customBenefitItems = [];
+        }
+
+        // Modal event handlers
+        window.onclick = function(event) {
+            const serviceModal = document.getElementById('serviceModal');
+            const serviceTypeModal = document.getElementById('serviceTypeModal');
+            const customItemModal = document.getElementById('customItemModal');
+            
+            if (event.target === serviceModal) {
+                closeServiceModal();
+            }
+            if (event.target === serviceTypeModal) {
+                closeServiceTypeModal();
+            }
+            if (event.target === customItemModal) {
+                closeCustomItemModal();
+            }
+        };
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeServiceModal();
+                closeServiceTypeModal();
+                closeCustomItemModal();
+            }
+            
+            // Enter key for login forms
+            if (e.key === 'Enter') {
+                if (!document.getElementById('loginForm').classList.contains('hidden')) {
+                    login();
+                } else if (!document.getElementById('registerForm').classList.contains('hidden')) {
+                    register();
+                }
+            }
+        });
+
+        // Auto-save functionality
+        let saveTimeout;
+        function autoSave() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                if (currentUser) {
+                    saveUserData();
+                }
+            }, 1000);
+        }
+
+        // Add event listeners for auto-save
+        document.addEventListener('input', function(e) {
+            if (e.target.matches('#basicSalary, #shiftAllowance, #nightShiftBonus, #sundayBonus, #holidayBonus, #sundayHolidayBonus, #substituteBonus, #overtimeHourlyRate, #targetHoursPerMonth, #workAddress, #nightShiftStart, #nightShiftEnd, #federalState')) {
+                autoSave();
+            }
+        });
+    </script>
+</body>
+</html>
