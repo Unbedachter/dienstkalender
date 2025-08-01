@@ -1492,32 +1492,10 @@
 
             try {
                 const result = await loginUserWithFirebase(username, password);
-                if (result.success) {
-                    currentUser = username;
-                    document.getElementById('currentUserDisplay').textContent = username;
-                    document.getElementById('loginScreen').classList.add('hidden');
-                    document.getElementById('mainApp').classList.remove('hidden');
-                    
-                    // Benutzerdaten von Firebase laden
-                    const userData = await loadUserDataFromFirebase(result.userId);
-                    if (userData) {
-                        serviceTypes = userData.serviceTypes || [];
-                        services = userData.services || [];
-                        freeDays = userData.freeDays || [];
-                        overtimeHistory = userData.overtimeHistory || {};
-                        salarySettings = { ...salarySettings, ...userData.salarySettings };
-                    }
-                    
-                    renderCalendar();
-                    renderServiceTypes();
-                    updateSalaryOverview();
-                    updateHoursOverview();
-                    loadSalarySettings();
-                    renderCustomItems();
-                    updateUndoRedoButtons();
-                } else {
+                if (!result.success) {
                     showMessage('Ungültiger Benutzername oder Passwort', 'error');
                 }
+                // Auth State Listener wird automatisch die Daten laden
             } catch (error) {
                 showMessage('Fehler bei der Anmeldung: ' + error.message, 'error');
             }
@@ -1563,12 +1541,10 @@
             }
         }
 
-        function logout() {
-            saveUserData();
-            currentUser = null;
-            document.getElementById('loginScreen').classList.remove('hidden');
-            document.getElementById('mainApp').classList.add('hidden');
-            clearLoginForm();
+        async function logout() {
+            await saveUserData();
+            await logoutUserFromFirebase();
+            // Auth State Listener wird automatisch die UI zurücksetzen
         }
 
         // Account deletion function
@@ -1605,6 +1581,44 @@
                 // Fallback to localStorage
                 loadUsers();
             }
+            
+            // Firebase Auth State Listener hinzufügen
+            auth.onAuthStateChanged(async function(user) {
+                if (user) {
+                    // Benutzer ist angemeldet - Daten laden
+                    console.log('User is signed in:', user.uid);
+                    currentUser = user.displayName || user.email;
+                    document.getElementById('currentUserDisplay').textContent = currentUser;
+                    document.getElementById('loginScreen').classList.add('hidden');
+                    document.getElementById('mainApp').classList.remove('hidden');
+                    
+                    // Benutzerdaten von Firebase laden
+                    const userData = await loadUserDataFromFirebase(user.uid);
+                    if (userData) {
+                        serviceTypes = userData.serviceTypes || [];
+                        services = userData.services || [];
+                        freeDays = userData.freeDays || [];
+                        overtimeHistory = userData.overtimeHistory || {};
+                        salarySettings = { ...salarySettings, ...userData.salarySettings };
+                        overtimePayment = userData.overtimePayment || 0;
+                        overtimePaymentHours = userData.overtimePaymentHours || 0;
+                    }
+                    
+                    renderCalendar();
+                    renderServiceTypes();
+                    updateSalaryOverview();
+                    updateHoursOverview();
+                    loadSalarySettings();
+                    renderCustomItems();
+                    updateUndoRedoButtons();
+                } else {
+                    // Benutzer ist nicht angemeldet
+                    console.log('User is signed out');
+                    currentUser = null;
+                    document.getElementById('loginScreen').classList.remove('hidden');
+                    document.getElementById('mainApp').classList.add('hidden');
+                }
+            });
             
             // Stabilize layout to prevent shifting
             stabilizeLayout();
@@ -3535,6 +3549,13 @@
                 autoSave();
             }
         });
+
+        // Auto-save bei Änderungen an Diensten, Diensttypen, etc.
+        function triggerAutoSave() {
+            if (currentUser) {
+                autoSave();
+            }
+        }
     </script>
 </body>
 </html>
