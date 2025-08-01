@@ -313,6 +313,7 @@
             overflow-y: auto;
             padding: 20px;
             box-sizing: border-box;
+            -webkit-overflow-scrolling: touch;
         }
 
         .modal-content {
@@ -1855,11 +1856,13 @@
             }
             
             modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
         }
 
         function closeServiceModal() {
             document.getElementById('serviceModal').style.display = 'none';
             editingService = null;
+            document.body.style.overflow = '';
         }
 
         function updateServiceTypeOptions() {
@@ -1970,11 +1973,13 @@
             }
             
             modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
         }
 
         function closeFreeModal() {
             document.getElementById('freeModal').style.display = 'none';
             editingFreeDay = null;
+            document.body.style.overflow = '';
         }
 
         function editFreeDay(freeDay) {
@@ -2069,11 +2074,13 @@
             }
             
             modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
         }
 
         function closeServiceTypeModal() {
             document.getElementById('serviceTypeModal').style.display = 'none';
             editingServiceType = null;
+            document.body.style.overflow = '';
         }
 
         function editServiceType(serviceType) {
@@ -2190,12 +2197,14 @@
             }
             
             modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
         }
 
         function closeCustomItemModal() {
             document.getElementById('customItemModal').style.display = 'none';
             editingCustomItem = null;
             currentCustomItemCategory = null;
+            document.body.style.overflow = '';
         }
 
         function editCustomItem(item, category) {
