@@ -1768,6 +1768,9 @@
                     if (service.isSubstitute) {
                         serviceEntry.textContent += ' (E)';
                     }
+                    if (service.isSubstituteOnCall) {
+                        serviceEntry.textContent += ' (RB)';
+                    }
                     if (serviceType.isOnCall) {
                         serviceEntry.textContent += ' (R)';
                     }
@@ -1856,6 +1859,7 @@
                 document.getElementById('serviceDate').value = editingService.date;
                 document.getElementById('serviceType').value = editingService.serviceTypeId;
                 document.getElementById('isSubstitute').checked = editingService.isSubstitute;
+                document.getElementById('isSubstituteOnCall').checked = editingService.isSubstituteOnCall || false;
                 document.getElementById('serviceNotes').value = editingService.notes || '';
             } else if (!document.getElementById('serviceDate').value) {
                 form.reset();
@@ -1926,6 +1930,7 @@
                 date: document.getElementById('serviceDate').value,
                 serviceTypeId: selectedServiceTypeId,
                 isSubstitute: document.getElementById('isSubstitute').checked,
+                isSubstituteOnCall: document.getElementById('isSubstituteOnCall').checked,
                 notes: document.getElementById('serviceNotes').value
             };
             
@@ -3112,7 +3117,13 @@
                 }
 
                 const eventId = service.id;
-                const summary = serviceType.name + (service.isSubstitute ? ' (E)' : '');
+                let summary = serviceType.name;
+                if (service.isSubstitute) {
+                    summary += ' (E)';
+                }
+                if (service.isSubstituteOnCall) {
+                    summary += ' (RB)';
+                }
                 const description = service.notes || '';
                 const location = serviceType.address || '';
 
