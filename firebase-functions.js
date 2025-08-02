@@ -118,18 +118,8 @@ async function generateICalForUser(userId) {
             const serviceType = serviceTypes.find(st => st.id === service.serviceTypeId);
             if (!serviceType) return;
 
-            // Verwende benutzerdefinierte Zeiten für Einsprung Rufbereitschaft
-            let startTimeStr, endTimeStr;
-            if (service.isSubstituteOnCall && service.substituteOnCallStartTime && service.substituteOnCallEndTime) {
-                startTimeStr = service.substituteOnCallStartTime;
-                endTimeStr = service.substituteOnCallEndTime;
-            } else {
-                startTimeStr = serviceType.startTime;
-                endTimeStr = serviceType.endTime;
-            }
-
-            const startTime = new Date(`${service.date}T${startTimeStr}`);
-            const endTime = new Date(`${service.date}T${endTimeStr}`);
+            const startTime = new Date(`${service.date}T${serviceType.startTime}`);
+            const endTime = new Date(`${service.date}T${serviceType.endTime}`);
             
             // Handle overnight shifts
             if (endTime <= startTime) {
