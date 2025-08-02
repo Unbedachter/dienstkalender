@@ -1898,6 +1898,18 @@
             
             // Event listeners für Checkboxen
             setupServiceModalEventListeners();
+            
+            // Initial state für Zeitfelder setzen (nach Event-Listener Setup)
+            const isSubstituteOnCallCheckbox = document.getElementById('isSubstituteOnCall');
+            const timeFields = document.getElementById('substituteOnCallTimeFields');
+            if (isSubstituteOnCallCheckbox.checked) {
+                timeFields.style.display = 'block';
+                // Wenn wir einen bestehenden Dienst bearbeiten, verwende die gespeicherten Zeiten
+                if (editingService && editingService.substituteOnCallStartTime && editingService.substituteOnCallEndTime) {
+                    document.getElementById('substituteOnCallStartTime').value = editingService.substituteOnCallStartTime;
+                    document.getElementById('substituteOnCallEndTime').value = editingService.substituteOnCallEndTime;
+                }
+            }
         }
 
         function closeServiceModal() {
@@ -1912,12 +1924,19 @@
             const timeFields = document.getElementById('substituteOnCallTimeFields');
             const serviceTypeSelect = document.getElementById('serviceType');
             
+            // Entferne alte Event-Listener um Duplikate zu vermeiden
+            const newCheckbox = isSubstituteOnCallCheckbox.cloneNode(true);
+            isSubstituteOnCallCheckbox.parentNode.replaceChild(newCheckbox, isSubstituteOnCallCheckbox);
+            
+            const newSelect = serviceTypeSelect.cloneNode(true);
+            serviceTypeSelect.parentNode.replaceChild(newSelect, serviceTypeSelect);
+            
             // Event listener für Einsprung Rufbereitschaft
-            isSubstituteOnCallCheckbox.addEventListener('change', function() {
+            newCheckbox.addEventListener('change', function() {
                 if (this.checked) {
                     timeFields.style.display = 'block';
                     // Fülle die Zeitfelder mit den Standardzeiten des ausgewählten Dienstes
-                    const selectedServiceType = serviceTypes.find(st => st.id === serviceTypeSelect.value);
+                    const selectedServiceType = serviceTypes.find(st => st.id === newSelect.value);
                     if (selectedServiceType) {
                         document.getElementById('substituteOnCallStartTime').value = selectedServiceType.startTime;
                         document.getElementById('substituteOnCallEndTime').value = selectedServiceType.endTime;
@@ -1928,22 +1947,33 @@
             });
             
             // Event listener für Dienst-Typ Änderung
-            serviceTypeSelect.addEventListener('change', function() {
+            newSelect.addEventListener('change', function() {
                 const selectedServiceType = serviceTypes.find(st => st.id === this.value);
-                if (selectedServiceType && isSubstituteOnCallCheckbox.checked) {
+                if (selectedServiceType && newCheckbox.checked) {
                     document.getElementById('substituteOnCallStartTime').value = selectedServiceType.startTime;
                     document.getElementById('substituteOnCallEndTime').value = selectedServiceType.endTime;
                 }
             });
             
-            // Initial state setzen
-            if (isSubstituteOnCallCheckbox.checked) {
+            // Initial state setzen - nur wenn keine benutzerdefinierten Zeiten vorhanden sind
+            if (newCheckbox.checked) {
                 timeFields.style.display = 'block';
-                const selectedServiceType = serviceTypes.find(st => st.id === serviceTypeSelect.value);
+                const selectedServiceType = serviceTypes.find(st => st.id === newSelect.value);
                 if (selectedServiceType) {
-                    document.getElementById('substituteOnCallStartTime').value = selectedServiceType.startTime;
-                    document.getElementById('substituteOnCallEndTime').value = selectedServiceType.endTime;
+                    // Nur setzen wenn die Felder leer sind (für neue Dienste)
+                    const startTimeField = document.getElementById('substituteOnCallStartTime');
+                    const endTimeField = document.getElementById('substituteOnCallEndTime');
+                    if (!startTimeField.value && !endTimeField.value) {
+                        startTimeField.value = selectedServiceType.startTime;
+                        endTimeField.value = selectedServiceType.endTime;
+                    }
                 }
+            }
+            
+            // Wenn wir einen bestehenden Dienst bearbeiten, verwende die gespeicherten Zeiten
+            if (editingService && editingService.isSubstituteOnCall && editingService.substituteOnCallStartTime && editingService.substituteOnCallEndTime) {
+                document.getElementById('substituteOnCallStartTime').value = editingService.substituteOnCallStartTime;
+                document.getElementById('substituteOnCallEndTime').value = editingService.substituteOnCallEndTime;
             }
         }
 
