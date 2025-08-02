@@ -118,16 +118,8 @@ async function generateICalForUser(userId) {
             const serviceType = serviceTypes.find(st => st.id === service.serviceTypeId);
             if (!serviceType) return;
 
-            let startTime, endTime;
-            
-            // Use custom times for substitute services if available
-            if (service.isSubstitute && service.customStartTime && service.customEndTime) {
-                startTime = new Date(`${service.date}T${service.customStartTime}`);
-                endTime = new Date(`${service.date}T${service.customEndTime}`);
-            } else {
-                startTime = new Date(`${service.date}T${serviceType.startTime}`);
-                endTime = new Date(`${service.date}T${serviceType.endTime}`);
-            }
+            const startTime = new Date(`${service.date}T${serviceType.startTime}`);
+            const endTime = new Date(`${service.date}T${serviceType.endTime}`);
             
             // Handle overnight shifts
             if (endTime <= startTime) {
@@ -135,14 +127,7 @@ async function generateICalForUser(userId) {
             }
 
             const eventId = service.id;
-            let summary = serviceType.name;
-            if (service.isSubstitute) {
-                summary += ' (E)';
-                // Add custom times to summary if available
-                if (service.customStartTime && service.customEndTime) {
-                    summary += ` ${service.customStartTime}-${service.customEndTime}`;
-                }
-            }
+            const summary = serviceType.name + (service.isSubstitute ? ' (E)' : '');
             const description = service.notes || '';
             const location = serviceType.address || '';
 
