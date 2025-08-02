@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -1094,6 +1095,15 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label>Benutzerdefinierte Uhrzeit (optional)</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="time" id="customStartTime" placeholder="Startzeit">
+                        <span>-</span>
+                        <input type="time" id="customEndTime" placeholder="Endzeit">
+                    </div>
+                    <small style="color: #666; font-size: 0.9em;">Leer lassen für Standard-Zeiten des Dienst-Typs</small>
+                </div>
+                <div class="form-group">
                     <label>Notizen</label>
                     <input type="text" id="serviceNotes" placeholder="Zusätzliche Informationen">
                 </div>
@@ -1764,7 +1774,14 @@
                     const serviceEntry = document.createElement('div');
                     serviceEntry.className = 'service-entry';
                     serviceEntry.style.backgroundColor = serviceType.color;
-                    serviceEntry.textContent = serviceType.name;
+                    
+                    // Show custom times if available, otherwise show service type name
+                    let displayText = serviceType.name;
+                    if (service.customStartTime && service.customEndTime) {
+                        displayText = `${serviceType.name} (${service.customStartTime}-${service.customEndTime})`;
+                    }
+                    
+                    serviceEntry.textContent = displayText;
                     if (service.isSubstitute) {
                         serviceEntry.textContent += ' (E)';
                     }
@@ -1860,6 +1877,8 @@
                 document.getElementById('serviceType').value = editingService.serviceTypeId;
                 document.getElementById('isSubstitute').checked = editingService.isSubstitute;
                 document.getElementById('isSubstituteOnCall').checked = editingService.isSubstituteOnCall || false;
+                document.getElementById('customStartTime').value = editingService.customStartTime || '';
+                document.getElementById('customEndTime').value = editingService.customEndTime || '';
                 document.getElementById('serviceNotes').value = editingService.notes || '';
             } else if (!document.getElementById('serviceDate').value) {
                 form.reset();
@@ -1872,6 +1891,9 @@
         function closeServiceModal() {
             document.getElementById('serviceModal').style.display = 'none';
             editingService = null;
+            // Reset custom time fields
+            document.getElementById('customStartTime').value = '';
+            document.getElementById('customEndTime').value = '';
             document.body.style.overflow = '';
         }
 
@@ -1931,6 +1953,8 @@
                 serviceTypeId: selectedServiceTypeId,
                 isSubstitute: document.getElementById('isSubstitute').checked,
                 isSubstituteOnCall: document.getElementById('isSubstituteOnCall').checked,
+                customStartTime: document.getElementById('customStartTime').value || null,
+                customEndTime: document.getElementById('customEndTime').value || null,
                 notes: document.getElementById('serviceNotes').value
             };
             
@@ -2319,8 +2343,12 @@
             const serviceType = serviceTypes.find(st => st.id === service.serviceTypeId);
             if (!serviceType) return 0;
             
-            const startTime = new Date(`2000-01-01T${serviceType.startTime}`);
-            const endTime = new Date(`2000-01-01T${serviceType.endTime}`);
+            // Use custom times if available, otherwise use service type default times
+            const startTimeStr = service.customStartTime || serviceType.startTime;
+            const endTimeStr = service.customEndTime || serviceType.endTime;
+            
+            const startTime = new Date(`2000-01-01T${startTimeStr}`);
+            const endTime = new Date(`2000-01-01T${endTimeStr}`);
             
             // Calculate work hours
             let workHours = (endTime - startTime) / (1000 * 60 * 60);
@@ -2556,12 +2584,12 @@
         }
 
         // FIXED: Night shift detection with configurable times
-        function isNightShift(serviceType, serviceDate) {
+        function isNightShift(serviceType, serviceDate, customStartTime = null, customEndTime = null) {
             const nightStart = salarySettings.nightShiftStart || '22:00';
             const nightEnd = salarySettings.nightShiftEnd || '06:00';
             
-            const serviceStart = serviceType.startTime;
-            const serviceEnd = serviceType.endTime;
+            const serviceStart = customStartTime || serviceType.startTime;
+            const serviceEnd = customEndTime || serviceType.endTime;
             
             // Convert times to minutes for easier comparison
             function timeToMinutes(timeStr) {
@@ -2642,9 +2670,11 @@
             return totalNightHours; // Return actual overlap hours
         }
 
-        function calculateSundayHours(serviceType, serviceDate) {
-            const startTime = new Date(`2000-01-01T${serviceType.startTime}`);
-            const endTime = new Date(`2000-01-01T${serviceType.endTime}`);
+        function calculateSundayHours(serviceType, serviceDate, customStartTime = null, customEndTime = null) {
+            const startTimeStr = customStartTime || serviceType.startTime;
+            const endTimeStr = customEndTime || serviceType.endTime;
+            const startTime = new Date(`2000-01-01T${startTimeStr}`);
+            const endTime = new Date(`2000-01-01T${endTimeStr}`);
             
             // Convert service times to minutes
             const serviceStartMinutes = startTime.getHours() * 60 + startTime.getMinutes();
@@ -2686,9 +2716,11 @@
             return sundayHours;
         }
 
-        function calculateHolidayHours(serviceType, serviceDate, holidays) {
-            const startTime = new Date(`2000-01-01T${serviceType.startTime}`);
-            const endTime = new Date(`2000-01-01T${serviceType.endTime}`);
+        function calculateHolidayHours(serviceType, serviceDate, holidays, customStartTime = null, customEndTime = null) {
+            const startTimeStr = customStartTime || serviceType.startTime;
+            const endTimeStr = customEndTime || serviceType.endTime;
+            const startTime = new Date(`2000-01-01T${startTimeStr}`);
+            const endTime = new Date(`2000-01-01T${endTimeStr}`);
             
             // Convert service times to minutes
             const serviceStartMinutes = startTime.getHours() * 60 + startTime.getMinutes();
@@ -2788,8 +2820,10 @@
                 if (!serviceType) return;
                 
                 // Calculate work hours without change time for bonus calculations
-                const startTime = new Date(`2000-01-01T${serviceType.startTime}`);
-                const endTime = new Date(`2000-01-01T${serviceType.endTime}`);
+                const customStartTime = service.customStartTime || serviceType.startTime;
+                const customEndTime = service.customEndTime || serviceType.endTime;
+                const startTime = new Date(`2000-01-01T${customStartTime}`);
+                const endTime = new Date(`2000-01-01T${customEndTime}`);
                 let workHoursWithoutChangeTime = (endTime - startTime) / (1000 * 60 * 60);
                 if (workHoursWithoutChangeTime < 0) workHoursWithoutChangeTime += 24; // Handle overnight shifts
                 workHoursWithoutChangeTime = (workHoursWithoutChangeTime * serviceType.workTimePercentage) / 100;
@@ -2798,7 +2832,7 @@
                 const dayOfWeek = serviceDate.getDay();
                 const isSunday = dayOfWeek === 0;
                 const isHoliday = holidays[service.date];
-                const nightHours = isNightShift(serviceType, serviceDate);
+                const nightHours = isNightShift(serviceType, serviceDate, service.customStartTime, service.customEndTime);
                 
                 // Debug logging for all services to check date parsing
                 console.log('Service date check:', {
@@ -2826,10 +2860,10 @@
                 }
                 
                 // Calculate actual Sunday hours (not entire service time)
-                const sundayHoursForService = calculateSundayHours(serviceType, serviceDate);
+                const sundayHoursForService = calculateSundayHours(serviceType, serviceDate, service.customStartTime, service.customEndTime);
                 
                 // Calculate actual holiday hours (not entire service time)
-                const holidayHoursForService = calculateHolidayHours(serviceType, serviceDate, holidays);
+                const holidayHoursForService = calculateHolidayHours(serviceType, serviceDate, holidays, service.customStartTime, service.customEndTime);
                 
                 // FIXED bonus calculation - check Sunday AND Holiday combination first
                 // Skip bonuses for on-call services
@@ -3108,8 +3142,11 @@
                 const serviceType = serviceTypes.find(st => st.id === service.serviceTypeId);
                 if (!serviceType) return;
 
-                const startTime = new Date(`${service.date}T${serviceType.startTime}`);
-                const endTime = new Date(`${service.date}T${serviceType.endTime}`);
+                // Use custom times if available, otherwise use service type default times
+                const startTimeStr = service.customStartTime || serviceType.startTime;
+                const endTimeStr = service.customEndTime || serviceType.endTime;
+                const startTime = new Date(`${service.date}T${startTimeStr}`);
+                const endTime = new Date(`${service.date}T${endTimeStr}`);
                 
                 // Handle overnight shifts
                 if (endTime <= startTime) {
