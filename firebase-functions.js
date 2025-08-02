@@ -127,7 +127,13 @@ async function generateICalForUser(userId) {
             }
 
             const eventId = service.id;
-            const summary = serviceType.name + (service.isSubstitute ? ' (E)' : '');
+            let summary = serviceType.name;
+            if (service.isSubstitute) {
+                summary += ' (E)';
+            }
+            if (service.isSubstituteOnCall) {
+                summary += ' (RB)';
+            }
             const description = service.notes || '';
             const location = serviceType.address || '';
 
