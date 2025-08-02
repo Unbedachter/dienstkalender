@@ -350,6 +350,16 @@
             margin-bottom: 20px;
         }
 
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+
         .form-group label {
             display: block;
             margin-bottom: 8px;
@@ -1091,6 +1101,18 @@
                     <div class="checkbox-group">
                         <input type="checkbox" id="isSubstituteOnCall">
                         <label for="isSubstituteOnCall">Einsprung Rufbereitschaft</label>
+                    </div>
+                </div>
+                <div id="substituteOnCallTimeFields" class="form-group" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Startzeit</label>
+                            <input type="time" id="substituteOnCallStartTime">
+                        </div>
+                        <div class="form-group">
+                            <label>Endzeit</label>
+                            <input type="time" id="substituteOnCallEndTime">
+                        </div>
                     </div>
                 </div>
                 <div class="form-group">
@@ -1861,18 +1883,68 @@
                 document.getElementById('isSubstitute').checked = editingService.isSubstitute;
                 document.getElementById('isSubstituteOnCall').checked = editingService.isSubstituteOnCall || false;
                 document.getElementById('serviceNotes').value = editingService.notes || '';
+                
+                // Lade die benutzerdefinierten Zeiten für Einsprung Rufbereitschaft
+                if (editingService.isSubstituteOnCall) {
+                    document.getElementById('substituteOnCallStartTime').value = editingService.substituteOnCallStartTime || '';
+                    document.getElementById('substituteOnCallEndTime').value = editingService.substituteOnCallEndTime || '';
+                }
             } else if (!document.getElementById('serviceDate').value) {
                 form.reset();
             }
             
             modal.style.display = 'block';
             document.body.style.overflow = 'hidden';
+            
+            // Event listeners für Checkboxen
+            setupServiceModalEventListeners();
         }
 
         function closeServiceModal() {
             document.getElementById('serviceModal').style.display = 'none';
             editingService = null;
             document.body.style.overflow = '';
+        }
+
+        function setupServiceModalEventListeners() {
+            // Event listener für Einsprung Rufbereitschaft Checkbox
+            const isSubstituteOnCallCheckbox = document.getElementById('isSubstituteOnCall');
+            const timeFields = document.getElementById('substituteOnCallTimeFields');
+            const serviceTypeSelect = document.getElementById('serviceType');
+            
+            // Event listener für Einsprung Rufbereitschaft
+            isSubstituteOnCallCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    timeFields.style.display = 'block';
+                    // Fülle die Zeitfelder mit den Standardzeiten des ausgewählten Dienstes
+                    const selectedServiceType = serviceTypes.find(st => st.id === serviceTypeSelect.value);
+                    if (selectedServiceType) {
+                        document.getElementById('substituteOnCallStartTime').value = selectedServiceType.startTime;
+                        document.getElementById('substituteOnCallEndTime').value = selectedServiceType.endTime;
+                    }
+                } else {
+                    timeFields.style.display = 'none';
+                }
+            });
+            
+            // Event listener für Dienst-Typ Änderung
+            serviceTypeSelect.addEventListener('change', function() {
+                const selectedServiceType = serviceTypes.find(st => st.id === this.value);
+                if (selectedServiceType && isSubstituteOnCallCheckbox.checked) {
+                    document.getElementById('substituteOnCallStartTime').value = selectedServiceType.startTime;
+                    document.getElementById('substituteOnCallEndTime').value = selectedServiceType.endTime;
+                }
+            });
+            
+            // Initial state setzen
+            if (isSubstituteOnCallCheckbox.checked) {
+                timeFields.style.display = 'block';
+                const selectedServiceType = serviceTypes.find(st => st.id === serviceTypeSelect.value);
+                if (selectedServiceType) {
+                    document.getElementById('substituteOnCallStartTime').value = selectedServiceType.startTime;
+                    document.getElementById('substituteOnCallEndTime').value = selectedServiceType.endTime;
+                }
+            }
         }
 
         function updateServiceTypeOptions() {
@@ -1931,6 +2003,8 @@
                 serviceTypeId: selectedServiceTypeId,
                 isSubstitute: document.getElementById('isSubstitute').checked,
                 isSubstituteOnCall: document.getElementById('isSubstituteOnCall').checked,
+                substituteOnCallStartTime: document.getElementById('isSubstituteOnCall').checked ? document.getElementById('substituteOnCallStartTime').value : null,
+                substituteOnCallEndTime: document.getElementById('isSubstituteOnCall').checked ? document.getElementById('substituteOnCallEndTime').value : null,
                 notes: document.getElementById('serviceNotes').value
             };
             
@@ -2319,8 +2393,18 @@
             const serviceType = serviceTypes.find(st => st.id === service.serviceTypeId);
             if (!serviceType) return 0;
             
-            const startTime = new Date(`2000-01-01T${serviceType.startTime}`);
-            const endTime = new Date(`2000-01-01T${serviceType.endTime}`);
+            // Verwende benutzerdefinierte Zeiten für Einsprung Rufbereitschaft
+            let startTimeStr, endTimeStr;
+            if (service.isSubstituteOnCall && service.substituteOnCallStartTime && service.substituteOnCallEndTime) {
+                startTimeStr = service.substituteOnCallStartTime;
+                endTimeStr = service.substituteOnCallEndTime;
+            } else {
+                startTimeStr = serviceType.startTime;
+                endTimeStr = serviceType.endTime;
+            }
+            
+            const startTime = new Date(`2000-01-01T${startTimeStr}`);
+            const endTime = new Date(`2000-01-01T${endTimeStr}`);
             
             // Calculate work hours
             let workHours = (endTime - startTime) / (1000 * 60 * 60);
@@ -3108,8 +3192,18 @@
                 const serviceType = serviceTypes.find(st => st.id === service.serviceTypeId);
                 if (!serviceType) return;
 
-                const startTime = new Date(`${service.date}T${serviceType.startTime}`);
-                const endTime = new Date(`${service.date}T${serviceType.endTime}`);
+                // Verwende benutzerdefinierte Zeiten für Einsprung Rufbereitschaft
+                let startTimeStr, endTimeStr;
+                if (service.isSubstituteOnCall && service.substituteOnCallStartTime && service.substituteOnCallEndTime) {
+                    startTimeStr = service.substituteOnCallStartTime;
+                    endTimeStr = service.substituteOnCallEndTime;
+                } else {
+                    startTimeStr = serviceType.startTime;
+                    endTimeStr = serviceType.endTime;
+                }
+
+                const startTime = new Date(`${service.date}T${startTimeStr}`);
+                const endTime = new Date(`${service.date}T${endTimeStr}`);
                 
                 // Handle overnight shifts
                 if (endTime <= startTime) {
