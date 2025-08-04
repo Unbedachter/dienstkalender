@@ -2505,7 +2505,7 @@
                 ? `${currentYear + 1}-01` 
                 : `${currentYear}-${String(currentMonth + 2).padStart(2, '0')}`;
             
-            let manualOvertimeForCurrentMonth = 0;
+            let manualOvertimeForCurrentMonth = null;
             if (salarySettings.manualOvertimeMonth) {
                 const [manualYear, manualMonth] = salarySettings.manualOvertimeMonth.split('-').map(Number);
                 const manualMonthKey = `${manualYear}-${String(manualMonth).padStart(2, '0')}`;
@@ -2529,7 +2529,7 @@
             let previousOvertime = overtimeHistory[previousMonthKey] || 0;
             
             // If we have manual overtime for current month, use that instead of previous overtime
-            if (manualOvertimeForCurrentMonth > 0) {
+            if (manualOvertimeForCurrentMonth !== null) {
                 previousOvertime = manualOvertimeForCurrentMonth;
                 console.log('Using manual overtime as previous overtime:', previousOvertime);
             } else {
