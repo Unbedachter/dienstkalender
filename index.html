@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="de">
 <head>
@@ -638,15 +639,20 @@
             }
             
             .calendar-header-cell {
-                display: block;
-                background: #6c757d;
-                color: white;
-                padding: 8px 5px;
-                text-align: center;
-                font-weight: 600;
-                font-size: 0.8rem;
-                border-radius: 5px;
-                margin-bottom: 3px;
+                display: none;
+            }
+            
+            .calendar-day .day-number {
+                display: flex;
+                align-items: center;
+                gap: 5px;
+            }
+            
+            .calendar-day .day-number::before {
+                content: attr(data-weekday);
+                font-weight: normal;
+                font-size: 0.7rem;
+                color: #6c757d;
             }
             
             .nav-tabs {
@@ -677,7 +683,7 @@
             
             .undo-redo-container {
                 display: flex;
-                gap: 5px;
+                gap: 10px;
                 justify-content: center;
                 width: 100%;
             }
@@ -685,7 +691,6 @@
             .undo-redo-btn {
                 padding: 10px 15px;
                 font-size: 1rem;
-                margin: 2px;
                 flex: 1;
                 max-width: 120px;
             }
@@ -1839,6 +1844,12 @@
             const dayNumber = document.createElement('div');
             dayNumber.className = 'day-number';
             dayNumber.textContent = date.getDate();
+            
+            // Add weekday for mobile display
+            const weekdays = ['Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag', 'Sonntag'];
+            const weekday = weekdays[date.getDay() === 0 ? 6 : date.getDay() - 1]; // Monday = 0
+            dayNumber.setAttribute('data-weekday', weekday);
+            
             dayCell.appendChild(dayNumber);
 
             // Add holiday indicator
