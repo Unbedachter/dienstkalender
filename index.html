@@ -2512,8 +2512,11 @@
                 
                 if (manualMonthKey === currentMonthKey) {
                     // Manual overtime for current month - this should be shown as "previous overtime"
-                    manualOvertimeForCurrentMonth = salarySettings.manualOvertimeHours || 0;
-                    console.log('Manual overtime for current month:', manualOvertimeForCurrentMonth, 'hours');
+                    // Check if manualOvertimeHours is explicitly set (including 0)
+                    if (salarySettings.manualOvertimeHours !== undefined && salarySettings.manualOvertimeHours !== null) {
+                        manualOvertimeForCurrentMonth = salarySettings.manualOvertimeHours;
+                        console.log('Manual overtime for current month:', manualOvertimeForCurrentMonth, 'hours');
+                    }
                 }
             }
             
@@ -3331,7 +3334,7 @@
             document.getElementById('overtimeHourlyRate').value = salarySettings.overtimeHourlyRate;
             document.getElementById('targetHoursPerMonth').value = salarySettings.targetHoursPerMonth;
             document.getElementById('vacationDaysPerYear').value = salarySettings.vacationDaysPerYear;
-            document.getElementById('manualOvertimeHours').value = salarySettings.manualOvertimeHours;
+            document.getElementById('manualOvertimeHours').value = salarySettings.manualOvertimeHours || '';
             document.getElementById('manualOvertimeMonth').value = salarySettings.manualOvertimeMonth;
             document.getElementById('nightShiftStart').value = salarySettings.nightShiftStart;
             document.getElementById('nightShiftEnd').value = salarySettings.nightShiftEnd;
@@ -3366,7 +3369,12 @@
             salarySettings.targetHoursPerMonth = parseFloat(document.getElementById('targetHoursPerMonth').value) || 170;
             salarySettings.vacationDaysPerYear = parseInt(document.getElementById('vacationDaysPerYear').value) || 30;
             const manualOvertimeHoursValue = document.getElementById('manualOvertimeHours').value;
-            salarySettings.manualOvertimeHours = manualOvertimeHoursValue === '' ? 0 : parseFloat(manualOvertimeHoursValue);
+            if (manualOvertimeHoursValue === '') {
+                salarySettings.manualOvertimeHours = 0;
+            } else {
+                const parsedValue = parseFloat(manualOvertimeHoursValue);
+                salarySettings.manualOvertimeHours = isNaN(parsedValue) ? 0 : parsedValue;
+            }
             salarySettings.manualOvertimeMonth = document.getElementById('manualOvertimeMonth').value || '';
             salarySettings.nightShiftStart = document.getElementById('nightShiftStart').value || '22:00';
             salarySettings.nightShiftEnd = document.getElementById('nightShiftEnd').value || '06:00';
