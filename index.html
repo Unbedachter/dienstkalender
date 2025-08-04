@@ -616,20 +616,36 @@
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
+                max-width: 100%;
+                margin: 0 auto;
+            }
+            
+            body {
+                padding: 0;
+                margin: 0;
             }
             
             .calendar-grid {
                 font-size: 0.8rem;
+                grid-template-columns: 1fr;
+                gap: 2px;
             }
             
             .calendar-day {
                 min-height: 80px;
                 padding: 5px;
+                margin-bottom: 5px;
+                border-radius: 8px;
+            }
+            
+            .calendar-header-cell {
+                display: none;
             }
             
             .nav-tabs {
                 flex-wrap: wrap;
                 gap: 5px;
+                justify-content: center;
             }
             
             .tab-btn {
@@ -642,6 +658,33 @@
             .header {
                 flex-direction: column;
                 gap: 15px;
+                padding: 15px;
+                margin: 10px;
+            }
+            
+            .header-controls {
+                flex-direction: column;
+                gap: 10px;
+                width: 100%;
+            }
+            
+            .undo-redo-btn {
+                padding: 10px 15px;
+                font-size: 1rem;
+                margin: 2px;
+            }
+            
+            .user-info {
+                flex-direction: column;
+                gap: 10px;
+                width: 100%;
+                text-align: center;
+            }
+            
+            .logout-btn {
+                width: 100%;
+                padding: 12px;
+                font-size: 1rem;
             }
 
             .salary-header {
@@ -697,11 +740,18 @@
         @media (max-width: 480px) {
             .container {
                 padding: 5px;
+                margin: 0;
+            }
+            
+            body {
+                padding: 0;
+                margin: 0;
             }
             
             .calendar-day {
                 min-height: 70px;
                 padding: 3px;
+                margin-bottom: 3px;
             }
             
             .tab-btn {
@@ -712,6 +762,7 @@
             
             .header h1 {
                 font-size: 1.5rem;
+                text-align: center;
             }
             
             .month-year {
@@ -727,6 +778,21 @@
                 width: 98%;
                 margin: 10px auto;
                 padding: 15px;
+            }
+            
+            .header {
+                margin: 5px;
+                padding: 10px;
+            }
+            
+            .undo-redo-btn {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+            
+            .logout-btn {
+                padding: 10px;
+                font-size: 0.9rem;
             }
         }
     </style>
