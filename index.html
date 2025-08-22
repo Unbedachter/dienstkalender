@@ -2447,15 +2447,15 @@
             // Calculate work hours
             let workHours = (endTime - startTime) / (1000 * 60 * 60);
             if (workHours < 0) workHours += 24; // Handle overnight shifts
-            
-            // Apply work time percentage (now supports decimals)
-            workHours = (workHours * serviceType.workTimePercentage) / 100;
-            
-            // Add change time
+
+            // Add change time BEFORE applying work time percentage
             if (serviceType.changeTime > 0) {
                 workHours += serviceType.changeTime / 60;
             }
-            
+
+            // Apply work time percentage (now supports decimals)
+            workHours = (workHours * serviceType.workTimePercentage) / 100;
+
             return workHours;
         }
 
@@ -2558,6 +2558,16 @@
             };
         }
 
+        // Helper to format decimal hours as "Xh Ymin"
+        function formatHoursToHM(hours) {
+            const sign = hours < 0 ? '-' : '';
+            const abs = Math.abs(hours);
+            const totalMinutes = Math.round(abs * 60);
+            const h = Math.floor(totalMinutes / 60);
+            const m = totalMinutes % 60;
+            return `${sign}${h}h ${m}min`;
+        }
+
         function updateHoursOverview() {
             console.log('=== UPDATE HOURS OVERVIEW ===');
             
@@ -2571,14 +2581,14 @@
             document.getElementById('hoursMonthDetail').textContent = monthName;
             document.getElementById('vacationMonth').textContent = monthName;
             
-            document.getElementById('targetHours').textContent = roundCommercial(hoursData.targetHours, 1).toFixed(1) + ' h';
-            document.getElementById('actualHours').textContent = roundCommercial(hoursData.actualHours, 1).toFixed(1) + ' h';
-            document.getElementById('overtimeFreeHours').textContent = roundCommercial(hoursData.overtimeFreeHours, 1).toFixed(1) + ' h';
-            document.getElementById('monthlyOvertime').textContent = roundCommercial(hoursData.monthlyOvertime, 1).toFixed(1) + ' h';
-            document.getElementById('previousOvertime').textContent = roundCommercial(hoursData.previousOvertime, 1).toFixed(1) + ' h';
-            document.getElementById('currentMonthOvertime').textContent = roundCommercial(hoursData.monthlyOvertime, 1).toFixed(1) + ' h';
-            document.getElementById('overtimePaymentHours').textContent = roundCommercial(overtimePaymentHours, 1).toFixed(1) + ' h';
-            document.getElementById('totalOvertime').textContent = roundCommercial(hoursData.totalOvertime - overtimePaymentHours, 1).toFixed(1) + ' h';
+            document.getElementById('targetHours').textContent = formatHoursToHM(hoursData.targetHours);
+            document.getElementById('actualHours').textContent = formatHoursToHM(hoursData.actualHours);
+            document.getElementById('overtimeFreeHours').textContent = formatHoursToHM(hoursData.overtimeFreeHours);
+            document.getElementById('monthlyOvertime').textContent = formatHoursToHM(hoursData.monthlyOvertime);
+            document.getElementById('previousOvertime').textContent = formatHoursToHM(hoursData.previousOvertime);
+            document.getElementById('currentMonthOvertime').textContent = formatHoursToHM(hoursData.monthlyOvertime);
+            document.getElementById('overtimePaymentHours').textContent = formatHoursToHM(overtimePaymentHours);
+            document.getElementById('totalOvertime').textContent = formatHoursToHM(hoursData.totalOvertime - overtimePaymentHours);
             
             // Update vacation display
             const vacationDaysPerYear = salarySettings.vacationDaysPerYear || 30;
@@ -3136,23 +3146,23 @@
                 <div class="salary-section">
                     <h3>Zuschläge</h3>
                     <div class="salary-item">
-                        <span>Nacht-Zuschläge (${roundCommercial(salaryData.nightShiftHours, 1).toFixed(1)}h):</span>
+                        <span>Nacht-Zuschläge (${formatHoursToHM(salaryData.nightShiftHours)}):</span>
                         <span>${roundCommercial(salaryData.nightBonus).toFixed(2)} €</span>
                     </div>
                     <div class="salary-item">
-                        <span>Sonntag-Zuschläge (${roundCommercial(salaryData.sundayHours, 1).toFixed(1)}h):</span>
+                        <span>Sonntag-Zuschläge (${formatHoursToHM(salaryData.sundayHours)}):</span>
                         <span>${roundCommercial(salaryData.sundayBonus).toFixed(2)} €</span>
                     </div>
                     <div class="salary-item">
-                        <span>Feiertag-Zuschläge (${roundCommercial(salaryData.holidayHours, 1).toFixed(1)}h):</span>
+                        <span>Feiertag-Zuschläge (${formatHoursToHM(salaryData.holidayHours)}):</span>
                         <span>${roundCommercial(salaryData.holidayBonus).toFixed(2)} €</span>
                     </div>
                     <div class="salary-item">
-                        <span>Sonntag + Feiertag-Zuschläge (${roundCommercial(salaryData.sundayHolidayHours, 1).toFixed(1)}h):</span>
+                        <span>Sonntag + Feiertag-Zuschläge (${formatHoursToHM(salaryData.sundayHolidayHours)}):</span>
                         <span>${roundCommercial(salaryData.sundayHolidayBonus).toFixed(2)} €</span>
                     </div>
                     <div class="salary-item">
-                        <span>Einspring-Zuschläge (${roundCommercial(salaryData.substituteHourlyHours, 1).toFixed(1)}h):</span>
+                        <span>Einspring-Zuschläge (${formatHoursToHM(salaryData.substituteHourlyHours)}):</span>
                         <span>${roundCommercial(salaryData.substituteHourlyBonusTotal).toFixed(2)} €</span>
                     </div>
                     ${customBonusItemsHtml}
@@ -3201,7 +3211,7 @@
                     <h3>Arbeitszeit</h3>
                     <div class="salary-item">
                         <span>Gesamte Arbeitszeit:</span>
-                        <span>${roundCommercial(salaryData.totalWorkTime, 1).toFixed(1)} Stunden</span>
+                        <span>${formatHoursToHM(salaryData.totalWorkTime)}</span>
                     </div>
                     <div class="salary-item">
                         <span>Stundenlohn (Brutto gesamt):</span>
